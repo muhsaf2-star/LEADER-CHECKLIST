@@ -11,7 +11,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .hidden{display:none!important}.app{min-height:100vh}.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#10243e,#1677ff)}
 .login-card{width:min(420px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 20px 60px #001b3a35}
 .logo{font-weight:800;font-size:19px}.sub{color:var(--muted);margin:6px 0 19px}.field{margin:14px 0}.field label{display:block;font-size:10px;font-weight:700;margin-bottom:7px}.field input,.field select,.field textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;outline:none;background:#fff}.field input:focus{border-color:var(--blue)}
-.primary{width:100%;padding:10px;border-radius:11px;background:var(--blue);color:#fff;font-weight:800}.error{color:var(--red);font-size:10px;margin-top:10px}
+.primary{width:100%;padding:10px;border-radius:11px;background:var(--blue);color:#fff;font-weight:800}.error{color:var(--red);font-size:10px;margin-top:10px}.status-banner{padding:14px;border-radius:12px;margin-bottom:12px;font-weight:800;border:1px solid}.status-blue{background:#eef6ff;border-color:#cfe1ff;color:#24558a}.status-yellow{background:#fff7df;border-color:#f2d28a;color:#795b00}.status-green{background:#e9f8f1;border-color:#bfe7d3;color:#12824c}.readonly{opacity:.78}.readonly input,.readonly textarea{pointer-events:none;background:#f7f9fc}
 .layout{display:flex;min-height:100vh}.side{width:235px;background:var(--navy);color:#fff;padding:13px 11px;position:fixed;inset:0 auto 0 0}.brand{font-size:16px;font-weight:900;padding:6px 10px 25px}.nav button{display:block;width:100%;padding:10px;margin:5px 0;text-align:left;background:transparent;color:#dce7f5;border-radius:10px}.nav button.active,.nav button:hover{background:#ffffff15;color:#fff}.main{margin-left:235px;width:calc(100% - 235px);padding:18px}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:20px}.top h1{font-size:21px;margin:0 0 5px}.muted{color:var(--muted);font-size:10px}.pill{padding:7px 10px;background:#fff;border:1px solid var(--line);border-radius:999px;font-size:10px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px}.card .big{font-size:22px;font-weight:900;margin-top:5px}.green{color:var(--green)}.red{color:var(--red)}.yellow{color:#b37a00}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}.panel h3{margin:0 0 14px}.barrow{margin:11px 0}.barlabel{font-size:10px;margin-bottom:5px;display:flex;justify-content:space-between;gap:10px}.bar{height:10px;border-radius:99px;background:#edf1f6;overflow:hidden}.bar>i{display:block;height:100%;border-radius:99px}.bar.greenbar>i{background:var(--green)}.bar.redbar>i{background:var(--red)}
 .table{width:100%;border-collapse:collapse;font-size:10px}.table th,.table td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.badge{padding:4px 6px;border-radius:999px;font-size:9px;font-weight:800}.bg{background:#e9f8f1;color:#12824c}.br{background:#ffecee;color:#c72f3c}
@@ -129,9 +129,13 @@ function showPage(id,btn){
 }
 function loadDashboard(){
  api('dashboard',{date:today(),store:state.user.store}).then(r=>{
-  state.today=r;
-  const ok=r.okItems||[],bad=r.findings||[];
+  state.today=r; const ok=r.okItems||[],bad=r.findings||[];
+  let status='';
+  if(!r.checklistStarted && !r.checklistPosted) status='<div class="status-banner status-blue">📋 Ayo ceklist harianmu belum dilakukan.</div>';
+  else if(r.checklistStarted && !r.checklistSubmitted) status='<div class="status-banner status-yellow">⏳ Ayo selesaikan Checklistmu hari ini.</div>';
+  else status='<div class="status-banner status-green">✅ Checklist-mu hari ini sudah selesai.</div>';
   document.getElementById('dashboard').innerHTML=`
+  ${status}
   <div class="cards">
     <div class="card"><div class="muted">Total Pertanyaan</div><div class="big">${r.total||24}</div></div>
     <div class="card"><div class="muted green">Sesuai / OK</div><div class="big green">${ok.length}</div></div>
@@ -152,11 +156,8 @@ function loadDashboard(){
 }
 function loadDashboardQuiz(){
  api('quiz',{date:today(),store:state.user.store}).then(r=>{
-  const done=(r.ero||[]).filter(x=>x.status==='Ya'), belum=(r.ero||[]).filter(x=>x.status!=='Ya');
-  document.getElementById('dashboardQuiz').innerHTML=`<h3>Monthly Quiz</h3><div class="grid2" style="margin-top:0">
-  <div><b class="green">🟢 ERO Sudah (${done.length})</b><div class="muted">${done.map(x=>esc(x.name)).join(' • ')||'-'}</div></div>
-  <div><b class="red">🔴 ERO Belum (${belum.length})</b><div class="muted">${belum.map(x=>esc(x.name)).join(' • ')||'-'}</div></div></div>
-  <div style="margin-top:10px"><b>SL:</b> <span class="badge ${r.sl==='Ya'?'bg':'br'}">${r.sl}</span></div>`;
+  const done=r.eroDone||[], belum=r.eroPending||[];
+  document.getElementById('dashboardQuiz').innerHTML=`<h3>Monthly Quiz — ${esc(r.month||today().slice(0,7))}</h3><div class="grid2" style="margin-top:0"><div><b class="green">🟢 ERO Sudah Checklist (${done.length})</b><div class="muted">${done.map(x=>esc(x)).join(' • ')||'-'}</div></div><div><b class="red">🔴 ERO Belum Checklist (${belum.length})</b><div class="muted">${belum.map(x=>esc(x)).join(' • ')||'-'}</div></div></div><div style="margin-top:10px"><b>SL:</b> <span class="badge ${r.slDone?'bg':'br'}">${r.slDone?'Sudah':'Belum'}</span></div>`;
  }).catch(()=>{});
 }
 function bars(items,type){if(!items.length)return '<div class="muted">Belum ada data.</div>';return items.map(x=>`<div class="barrow"><div class="barlabel"><span>${esc(x.question)}</span><b>${x.count||1}</b></div><div class="bar ${type}bar"><i style="width:${Math.min(100,(x.count||1)*25)}%"></i></div></div>`).join('')}
@@ -200,22 +201,18 @@ function loadChecklist(){
  });
 }
 function renderChecklist(){
- const meta=state.checklistMeta||{};
- const answers=meta.answers||[];
- const map={}; answers.forEach(a=>map[String(a.no)]=a);
- const posted=!!meta.posted;
+ const meta=state.checklistMeta||{}, answers=meta.answers||[], map={}; answers.forEach(a=>map[String(a.no)]=a); const posted=!!meta.posted;
  document.getElementById('checklist').innerHTML=`
  <div class="panel">
    <div class="muted">Tanggal: <b>${today()}</b> • Store: <b>${esc(state.user.storeName||'ALL AREA')}</b></div>
-   ${posted?'<div style="margin-top:10px;padding:10px;border-radius:10px;background:#fff7df;border:1px solid #f2d28a;color:#795b00"><b>⚠️ Checklist hari ini sudah diposting.</b><br>Jika ada perubahan, edit checklist → <b>Simpan Sementara</b> → <b>Posting Perubahan</b>. Sistem tidak membuat submit kedua.</div>':''}
-   ${meta.draft&&!posted?'<div style="margin-top:10px;padding:10px;border-radius:10px;background:#eef6ff;border:1px solid #cfe1ff;color:#24558a"><b>💾 Draft tersimpan.</b> Kamu bisa melanjutkan checklist ini.</div>':''}
+   ${posted?'<div class="status-banner status-green" style="margin-top:10px">✅ Checklist hari ini sudah selesai dan terkunci.<br><span style="font-weight:600">Jika ada yang tidak sesuai, tekan <b>UNPOSTING / EDIT</b> untuk membuka kembali. Setelah diperbaiki, lakukan Posting Perubahan.</span></div>':''}
+   ${meta.draft&&!posted?'<div class="status-banner status-blue" style="margin-top:10px">💾 Draft tersimpan. Lanjutkan checklist sampai 24/24 lalu Posting.</div>':''}
  </div>
- <form id="checkForm">${state.questions.map(q=>questionHtml(q,map[q.no])).join('')}
- <div id="quizBox" class="panel" style="margin:10px 0"><h3>Monthly Quiz</h3><div class="muted">Status quiz ERO dan SL.</div><div id="quizContent">Memuat...</div></div>
- <div class="savebar"><div class="muted" id="checkProgress">0 / ${state.questions.length} terisi</div><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end"><button type="button" style="background:#64748b" onclick="saveChecklistDraft()">SIMPAN SEMENTARA</button><button type="button" onclick="postChecklistUI()">${posted?'POSTING PERUBAHAN':'POSTING CHECKLIST'}</button></div></div></form>`;
- loadQuiz();
- updateProgress();
- document.querySelectorAll('#checkForm input[type=radio]').forEach(x=>x.addEventListener('change',updateProgress));
+ <form id="checkForm" class="${posted?'readonly':''}">${state.questions.map(q=>questionHtml(q,map[q.no])).join('')}
+ <div id="quizBox" class="panel" style="margin:10px 0"><h3>Monthly Quiz</h3><div class="muted">1x per bulan. Yang sudah selesai akan terkunci sampai bulan berikutnya.</div><div id="quizContent">Memuat...</div></div>
+ <div class="savebar"><div class="muted" id="checkProgress">0 / ${state.questions.length} terisi</div><div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end">${posted?'<button type="button" style="background:#d97706" onclick="unpostChecklistUI()">UNPOSTING / EDIT</button>':'<button type="button" style="background:#64748b" onclick="saveChecklistDraft()">SIMPAN SEMENTARA</button><button type="button" onclick="postChecklistUI()">POSTING CHECKLIST</button>'}</div></div></form>`;
+ loadQuiz(); updateProgress();
+ document.querySelectorAll('#checkForm input[type=radio],#checkForm input[type=text],#checkForm textarea').forEach(x=>x.addEventListener('change',updateProgress));
 }
 function questionHtml(q,a){
  a=a||{}; let extras='';
@@ -241,29 +238,17 @@ function collectAnswers(allowPartial){
 function updateProgress(){
  const n=document.querySelectorAll('#checkForm input[type=radio]:checked').length; const el=document.getElementById('checkProgress'); if(el)el.textContent=`${n} / ${state.questions.length} terisi`;
 }
-function saveChecklistDraft(){
- const c=collectAnswers(true);
- api('saveDraft',{date:today(),user:state.user,answers:c.answers}).then(r=>{if(r.ok){state.checklistMeta=state.checklistMeta||{};state.checklistMeta.draft=true;alert(`Draft tersimpan. ${c.answers.length}/${state.questions.length} checklist sudah diisi.`)}else alert(r.message||'Gagal menyimpan sementara.')}).catch(()=>alert('Gagal terhubung ke Apps Script.'));
-}
-function postChecklistUI(){
- const meta=state.checklistMeta||{};
- if(meta.posted && !confirm('Checklist hari ini sudah pernah diposting. Posting lagi akan MEMPERBARUI data hari ini, bukan membuat submit kedua. Lanjutkan?')) return;
- const c=collectAnswers(false);
- if(!c.ok){alert(`Belum bisa posting. Checklist nomor ${c.missing.join(', ')} belum diisi. Gunakan SIMPAN SEMENTARA jika ingin melanjutkan nanti.`); const el=document.querySelector(`[data-no="${c.missing[0]}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});return}
- api('postChecklist',{date:today(),user:state.user,answers:c.answers}).then(r=>{if(r.ok){alert(r.message||'Checklist berhasil diposting.');loadChecklist();showPage('dashboard');}else alert(r.message||'Gagal posting.')}).catch(()=>alert('Gagal terhubung ke Apps Script.'));
-}
+function saveChecklistDraft(){ const c=collectAnswers(true); api('saveDraft',{date:today(),user:state.user,answers:c.answers}).then(r=>{if(r.ok){state.checklistMeta=state.checklistMeta||{};state.checklistMeta.draft=true;alert(`Draft tersimpan. ${c.answers.length}/${state.questions.length} checklist sudah diisi.`);loadChecklist()}else alert(r.message||'Gagal menyimpan sementara.')}).catch(()=>alert('Gagal terhubung ke Apps Script.'));}
+function postChecklistUI(){ const meta=state.checklistMeta||{}; if(meta.posted){alert('Checklist hari ini sudah terkunci. Gunakan UNPOSTING / EDIT terlebih dahulu jika ada yang tidak sesuai.');return} const c=collectAnswers(false); if(!c.ok){alert(`Belum bisa posting. Checklist nomor ${c.missing.join(', ')} belum diisi.`);const el=document.querySelector(`[data-no="${c.missing[0]}"]`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});return} api('postChecklist',{date:today(),user:state.user,answers:c.answers}).then(r=>{if(r.ok){alert(r.message||'Checklist berhasil diposting.');loadChecklist();showPage('dashboard');}else alert(r.message||'Gagal posting.')}).catch(()=>alert('Gagal terhubung ke Apps Script.'));}
+function unpostChecklistUI(){ if(!confirm('Buka kembali checklist hari ini untuk edit? Data akan dipindahkan ke draft dan dapat diposting kembali setelah diperbaiki.'))return; api('unpostChecklist',{date:today(),user:state.user}).then(r=>{if(r.ok){alert(r.message);loadChecklist();}else alert(r.message||'Gagal membuka checklist.')}).catch(()=>alert('Gagal terhubung ke Apps Script.'));}
 function loadQuiz(){
  api('quiz',{date:today(),store:state.user.store}).then(r=>{
-  const rows=r.rows||[], status={}; rows.forEach(x=>status[x.TYPE+'|'+x.NAME]=x.STATUS);
-  const e=(r.eros||[]).map(x=>{const st=status['ERO|'+x.NAME]||'Belum';return `<label style="display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin:3px"><input type="checkbox" data-quiz-ero="${esc(x.NAME)}" ${st==='Ya'?'checked':''}> ${esc(x.NAME)}</label>`}).join('');
-  const sl=status['SL|SL']||'Belum';
-  document.getElementById('quizContent').innerHTML=`<div><b>ERO</b><div>${e||'<span class="muted">Isi ERO_MASTER terlebih dahulu.</span>'}</div></div><div style="margin-top:8px"><b>SL</b><div class="opts" style="margin:5px 0"><label><input type="radio" name="quizsl" value="Ya" ${sl==='Ya'?'checked':''}> Ya</label><label><input type="radio" name="quizsl" value="Belum" ${sl!=='Ya'?'checked':''}> Belum</label></div></div><button type="button" style="margin-top:6px;padding:7px 10px;border-radius:8px;background:var(--blue);color:#fff" onclick="saveQuiz()">Simpan Status Quiz</button>`;
+  const done=new Set(r.eroDone||[]), pending=new Set(r.eroPending||[]), slDone=!!r.slDone;
+  const e=(r.eros||[]).map(x=>{const name=String(x.NAME);const isDone=done.has(name);return `<label style="display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin:3px;background:${isDone?'#e9f8f1':'#fff'}"><input type="checkbox" data-quiz-ero="${esc(name)}" ${isDone?'checked disabled':''}> ${esc(name)} ${isDone?'<span class="badge bg">Sudah</span>':'<span class="badge br">Belum</span>'}</label>`}).join('');
+  document.getElementById('quizContent').innerHTML=`<div><b>ERO</b><div>${e||'<span class="muted">Isi ERO_MASTER terlebih dahulu.</span>'}</div></div><div style="margin-top:8px"><b>SL</b><div class="opts" style="margin:5px 0"><label><input type="radio" name="quizsl" value="Ya" ${slDone?'checked disabled':''}> Ya</label><label><input type="radio" name="quizsl" value="Belum" ${slDone?'disabled':'checked'}> Belum</label></div></div>${(done.size||slDone)?`<div class="muted" style="margin-top:7px">Yang sudah selesai bulan ${esc(r.month||today().slice(0,7))} tidak perlu checklist lagi sampai bulan berikutnya.</div>`:''}<button type="button" style="margin-top:6px;padding:7px 10px;border-radius:8px;background:var(--blue);color:#fff" onclick="saveQuiz()">Simpan Status Quiz</button>`;
  }).catch(()=>{});
 }
-function saveQuiz(){
- const items=[];document.querySelectorAll('[data-quiz-ero]').forEach(x=>items.push({type:'ERO',name:x.dataset.quizEro,status:x.checked?'Ya':'Belum'}));const sl=document.querySelector('input[name="quizsl"]:checked');if(sl)items.push({type:'SL',name:'SL',status:sl.value});
- api('saveQuiz',{date:today(),user:state.user,items}).then(r=>{if(r.ok)alert('Status Monthly Quiz tersimpan.');});
-}
+function saveQuiz(){ const items=[];document.querySelectorAll('[data-quiz-ero]').forEach(x=>{if(!x.disabled&&x.checked)items.push({type:'ERO',name:x.dataset.quizEro,status:'Ya'})});const sl=document.querySelector('input[name="quizsl"]:checked');if(sl&&!sl.disabled&&sl.value==='Ya')items.push({type:'SL',name:'SL',status:'Ya'});if(!items.length){alert('Belum ada Monthly Quiz baru yang ditandai selesai.');return}api('saveQuiz',{date:today(),user:state.user,items}).then(r=>{if(r.ok){alert(r.message||'Status Monthly Quiz tersimpan.');loadQuiz();loadDashboardQuiz();}else alert(r.message||'Gagal menyimpan quiz.')}).catch(()=>alert('Gagal terhubung ke Apps Script.'));}
 function loadHistory(){
  api('history',{store:state.user.store,limit:50}).then(r=>document.getElementById('history').innerHTML=`<div class="panel"><table class="table"><tr><th>Tanggal</th><th>Jam</th><th>Leader</th><th>Store</th><th>Temuan</th></tr>${(r.rows||[]).map(x=>`<tr><td>${x.date}</td><td>${x.time}</td><td>${esc(x.leader)}</td><td>${esc(x.store)}</td><td class="red">${x.findings}</td></tr>`).join('')}</table></div>`)
 }
