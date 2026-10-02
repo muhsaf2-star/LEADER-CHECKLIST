@@ -403,11 +403,13 @@ async function loadChecklist(){
   el.innerHTML='<div class="card">Memuat checklist...</div>';
   try{
     const r=await api('checklistState',{date:today(),user:state.user});state.checkState=r;
+    if(r.posted){
+      el.innerHTML=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist harian kamu hari ini sudah tersimpan dan terkunci. Kamu tidak bisa mengisi atau submit ulang hari ini kecuali memilih <b>EDIT CEKLIST</b>.</p><div class="successMeta"><span>✓ 24 / 24 item</span><span>✓ ${esc(r.updatedTime||fmtDate())}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button><button class="btn btnGreen" style="margin-left:7px" onclick="backHome()">DASHBOARD</button></div></div>`;
+      return;
+    }
     const map={};(r.answers||[]).forEach(a=>map[a.no]=a);
-    const posted=!!r.posted;
-    const notice=posted
-      ? `<div class="lockedNotice">✓ <b>Checklist hari ini sudah selesai.</b><br>Checklist terkunci dan tidak bisa diisi ulang. Jika ada yang perlu diperbaiki, gunakan <b>UNPOSTING / EDIT</b>.</div>`
-      : '';
+    const posted=false;
+    const notice='';
     const questionClass=posted?'question lockedQuestion':'question';
     el.innerHTML=`<div class="checkHeader">
       <div class="checkTop"><button class="backBtn" onclick="backHome()">‹</button><div><div class="checkTitle">DCL Checklist</div><div class="checkSub">${esc(state.user.storeName||'ALL AREA')} • ${fmtDate()}</div></div></div>
@@ -468,7 +470,7 @@ async function postChecklist(){
   if(!confirm('Posting checklist hari ini? Setelah posting, checklist akan terkunci.'))return;
   try{
     const r=await api('postChecklist',{date:today(),user:state.user,answers:c.answers});
-    if(r.ok){state.checkState={posted:true,locked:true,answers:c.answers};toast('✓ Checklist hari ini selesai dan terkunci');go('home')}
+    if(r.ok){state.checkState={posted:true,locked:true,answers:c.answers};toast('✓ Checklist hari ini selesai dan terkunci');loadChecklist()}
     else toast(r.message||'Gagal posting')
   }catch(e){toast('Gagal terhubung ke Apps Script')}
 }
