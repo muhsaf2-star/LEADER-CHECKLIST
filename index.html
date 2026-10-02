@@ -159,6 +159,16 @@ button{cursor:pointer}
   .mobileNav button{border:0;background:transparent;color:#819088;font-size:9px;font-weight:800}.mobileNav button.active{color:var(--green2)}.mobileNav .ico{font-size:18px;display:block;margin-bottom:2px}
 }
 @media(min-width:801px){.main{max-width:950px}}
+
+<style>
+.successScreen{min-height:58vh;display:flex;align-items:center;justify-content:center;padding:18px 8px}
+.successCard{width:min(680px,100%);text-align:center;background:#fff;border:1px solid var(--line);border-radius:24px;padding:34px 22px;box-shadow:0 14px 40px rgba(0,0,0,.07)}
+.successIcon{width:82px;height:82px;border-radius:50%;margin:0 auto 18px;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:900}
+.successCard h2{margin:0 0 8px;font-size:28px;line-height:1.15}.successCard p{color:#64748b;margin:0 auto 20px;max-width:480px;line-height:1.5}.successName{color:#15803d}.successMeta{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 20px}.successMeta span{background:#f1f5f9;border-radius:999px;padding:7px 11px;font-size:12px;color:#475569}
+.monitorHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.monitorTitle{font-weight:800}.monthInput{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 10px;font:inherit;color:#334155}.dayGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.dayCell{border:1px solid var(--line);border-radius:11px;padding:8px 4px;text-align:center;background:#fff;cursor:pointer;min-height:54px}.dayCell .dnum{font-weight:800;font-size:13px}.dayCell small{display:block;font-size:9px;margin-top:4px}.dayCell.done{border-color:#bbf7d0;background:#f0fdf4}.dayCell.reason{border-color:#fde68a;background:#fffbeb}.dayCell.missing{border-color:#fecaca;background:#fff5f5}.dayCell.future{opacity:.38;cursor:default}.dayCell.selected{outline:2px solid #16a34a;outline-offset:1px}.monitorLegend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#64748b}.monitorLegend span{display:flex;align-items:center;gap:5px}.dot{width:8px;height:8px;border-radius:50%;display:inline-block}.dot.g{background:#16a34a}.dot.y{background:#eab308}.dot.r{background:#ef4444}.reasonBox{margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:14px}.reasonBox select,.reasonBox textarea{width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:7px;font:inherit;box-sizing:border-box}.reasonBox textarea{min-height:72px;resize:vertical}.reasonActions{display:flex;justify-content:flex-end;margin-top:9px}.reviewBox{margin-top:12px}
+.quizChartWrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.donut{width:150px;height:150px;border-radius:50%;background:conic-gradient(#16a34a var(--pct),#fecaca 0);position:relative;display:grid;place-items:center;flex:0 0 auto}.donut:after{content:'';position:absolute;width:94px;height:94px;border-radius:50%;background:#fff}.donut b{position:relative;z-index:1;font-size:25px}.quizSummary{flex:1;min-width:190px}.quizSummaryRow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.quizSummaryRow:last-child{border-bottom:0}.quizPerson{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.quizPerson:last-child{border-bottom:0}.quizPerson small{display:block;color:#64748b;margin-top:2px}.badgeBtn{border:0;border-radius:999px;padding:7px 10px;font-weight:700;font-size:11px;cursor:pointer}.badgeBtn.done{background:#dcfce7;color:#15803d}.badgeBtn.pending{background:#fee2e2;color:#b91c1c}.badgeBtn:disabled{cursor:default;opacity:.9}
+@media(max-width:600px){.successCard{padding:28px 16px}.successCard h2{font-size:23px}.successIcon{width:70px;height:70px;font-size:40px}.dayGrid{gap:4px}.dayCell{min-height:48px;padding:6px 2px}.dayCell small{font-size:8px}.quizChartWrap{justify-content:center}.quizSummary{width:100%}}
+</style>
 </style>
 </head>
 <body>
@@ -552,6 +562,93 @@ async function loadAllArea(){
   try{const r=await api('allArea',{month:today().slice(0,7)});
     el.innerHTML=`<div class="card"><div class="panelTitle">All Area • ${today().slice(0,7)}</div><div class="tableWrap"><table class="table"><tr><th>Store</th><th>Checklist</th><th>Finding</th><th>Last Check</th></tr>${(r.stores||[]).map(x=>`<tr><td>${esc(x.store)}</td><td>${x.checks}</td><td class="${Number(x.findings)>0?'statusBad':'statusGood'}">${x.findings}</td><td>${esc(x.lastTime||'-')}</td></tr>`).join('')}</table></div></div>`;
   }catch(e){el.innerHTML='<div class="card">Gagal memuat All Area.</div>'}
+}
+
+async function loadHome(){
+  const el=document.getElementById('home'); el.innerHTML='<div class="card">Memuat dashboard...</div>';
+  try{
+    const month=(window._monitorMonth||today().slice(0,7));
+    const [cs,dash,q,mon]=await Promise.all([
+      api('checklistState',{date:today(),user:state.user}),
+      api('dashboard',{date:today(),store:state.user.store,user:state.user}),
+      api('quiz',{date:today(),store:state.user.store}),
+      api('monitor',{month:month,store:state.user.store,user:state.user})
+    ]);
+    state.checkState=cs;
+    const posted=!!cs.posted,draft=!!cs.draft,filled=(cs.answers||[]).length,pct=Math.round(filled/24*100);
+    let hero='';
+    if(posted){
+      hero=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist harian kamu hari ini sudah tersimpan dan terkunci.</p><div class="successMeta"><span>✓ 24 / 24 item</span><span>✓ ${esc(dash.lastTime||'')}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button></div></div>`;
+    }else if(draft){
+      hero=`<div class="hero"><div class="heroTop"><div class="heroIcon">↗</div><div><div class="eyebrow">DAILY CHECKLIST</div><h2>Ayo selesaikan<br>Checklist-mu hari ini</h2><p>Draft kamu sudah tersimpan. Lanjutkan dari item terakhir.</p></div></div><div class="progressMeta"><span>${filled} / 24 item</span><span>${pct}%</span></div><div class="progress"><i style="width:${pct}%"></i></div><button class="heroAction" onclick="checkPage()">LANJUTKAN CHECKLIST →</button></div>`;
+    }else{
+      hero=`<div class="hero"><div class="heroTop"><div class="heroIcon">☑</div><div><div class="eyebrow">DAILY CHECKLIST</div><h2>Ayo checklist harianmu<br>belum dilakukan</h2><p>Mari pastikan semua area store dalam kondisi terbaik.</p></div></div><button class="heroAction" onclick="checkPage()">MULAI CHECKLIST →</button></div>`;
+    }
+    const okCount=dash.okItems?.length||0,findCount=dash.findings?.length||0,eros=q.eros||[],done=eros.filter(x=>q.completed?.['ERO|'+x.NAME]),pending=eros.filter(x=>!q.completed?.['ERO|'+x.NAME]),qpct=eros.length?Math.round(done.length/eros.length*100):0;
+    el.innerHTML=hero+`<div class="stats"><div class="stat ok"><div class="statIcon">✓</div><div class="statValue">${okCount}</div><div class="statLabel">OK hari ini</div></div><div class="stat finding"><div class="statIcon">⚠</div><div class="statValue">${findCount}</div><div class="statLabel">Finding hari ini</div></div></div>`+
+      `<div class="card quizCard"><div class="quizHead"><div class="quizTitle">MONTHLY QUIZ • ${esc(q.month||month)}</div><button class="btn btnOutline" onclick="go('quiz')">Detail →</button></div><div class="quizChartWrap"><div class="donut" style="--pct:${qpct}%"><b>${qpct}%</b></div><div class="quizSummary"><div class="quizSummaryRow"><span>🟢 Sudah</span><b>${done.length} ERO</b></div><div class="quizSummaryRow"><span>🔴 Belum</span><b>${pending.length} ERO</b></div><div class="subline" style="margin-top:8px">Status tersimpan sampai ganti bulan.</div></div></div></div>`+
+      renderMonitor(mon,month);
+    if(findCount)el.innerHTML+=`<div class="card" style="margin-top:11px"><div class="panelTitle">🔴 Finding Hari Ini</div><div class="findingList">${(dash.findings||[]).map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div></div>`;
+  }catch(e){console.error(e);el.innerHTML='<div class="card">Gagal memuat dashboard. Coba refresh.</div>'}
+}
+function renderMonitor(data,month){
+  const daysIn=new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate(),todayStr=today();
+  const map={};(data.days||[]).forEach(x=>map[x.date]=x);
+  let cells='';
+  for(let d=1;d<=daysIn;d++){
+    const date=`${month}-${String(d).padStart(2,'0')}`,x=map[date],future=date>todayStr;
+    let cls='missing',lab='Belum'; if(x?.status==='submitted'){cls='done';lab='Selesai'} else if(x?.reason){cls='reason';lab=x.reason.length>10?x.reason.slice(0,9)+'…':x.reason} else if(future){cls='future';lab='-'}
+    cells+=`<button class="dayCell ${cls}" ${future?'disabled':''} onclick="openMonitorDate('${date}')"><span class="dnum">${d}</span><small>${esc(lab)}</small></button>`;
+  }
+  return `<div class="card" style="margin-top:11px"><div class="monitorHead"><div><div class="monitorTitle">MONITORING CHECKLIST</div><div class="subline">Pilih tanggal untuk preview hasil checklist.</div></div><input class="monthInput" type="month" value="${month}" onchange="changeMonitorMonth(this.value)"></div><div class="dayGrid">${cells}</div><div class="monitorLegend"><span><i class="dot g"></i> Sudah checklist</span><span><i class="dot y"></i> Ada reason</span><span><i class="dot r"></i> Belum</span></div><div id="monitorPreview"></div></div>`;
+}
+async function changeMonitorMonth(month){window._monitorMonth=month;loadHome()}
+async function openMonitorDate(date){
+  const box=document.getElementById('monitorPreview');if(!box)return;box.innerHTML='<div class="reviewBox"><div class="subline">Memuat '+esc(date)+'...</div></div>';
+  try{
+    const [r,m]=await Promise.all([api('dashboard',{date:date,store:state.user.store,user:state.user}),api('monitor',{month:date.slice(0,7),store:state.user.store,user:state.user})]);
+    const item=(m.days||[]).find(x=>x.date===date),findings=r.findings||[],latest=r.latest||[],ok=latest.filter(x=>x.ok).length;
+    if(item?.status==='submitted'){
+      box.innerHTML=`<div class="reviewBox card"><div class="panelTitle">Preview • ${esc(date)}</div><div class="subline">Leader: <b>${esc(item.leader||'-')}</b> • ${esc(item.time||'')}</div><div class="reviewGrid" style="margin-top:10px"><div class="reviewMetric"><b class="statusGood">${ok}</b><span>OK / ${latest.length||24}</span></div><div class="reviewMetric"><b class="${findings.length?'statusBad':'statusGood'}">${findings.length}</b><span>Finding</span></div></div>${findings.length?`<div style="margin-top:10px"><div class="panelTitle">Finding</div><div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div></div>`:'<div class="subline" style="margin-top:10px">Tidak ada finding 🎉</div>'}</div>`;
+    }else{
+      box.innerHTML=`<div class="reasonBox"><div class="panelTitle">${esc(date)} • Checklist belum dilakukan</div><div class="subline" style="margin-top:4px">Kalau ada alasan seperti Offday atau tugas luar, simpan reason di sini.</div><select id="reasonSelect"><option value="">Pilih alasan...</option><option>Offday</option><option>Pekerjaan di luar kantor</option><option>Izin sakit</option><option>Cuti</option><option>Training</option><option>Lainnya</option></select><textarea id="reasonNote" placeholder="Catatan (opsional)">${esc(item?.note||'')}</textarea><div class="reasonActions"><button class="btn btnGreen" onclick="saveMonitorReason('${date}')">SIMPAN REASON</button></div></div>`;
+      if(item?.reason){document.getElementById('reasonSelect').value=item.reason;}
+    }
+    box.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }catch(e){box.innerHTML='<div class="reviewBox subline">Gagal memuat tanggal.</div>'}
+}
+async function saveMonitorReason(date){
+  const reason=document.getElementById('reasonSelect')?.value,note=document.getElementById('reasonNote')?.value||'';
+  if(!reason){toast('Pilih alasan terlebih dahulu');return}
+  try{const r=await api('saveReason',{date,user:state.user,reason,note});if(r.ok){toast('Reason tersimpan');loadHome()}else toast(r.message||'Gagal menyimpan reason')}catch(e){toast('Gagal terhubung ke server')}
+}
+async function loadChecklist(){
+  const el=document.getElementById('check');el.innerHTML='<div class="card">Memuat checklist...</div>';
+  try{
+    const r=await api('checklistState',{date:today(),user:state.user});state.checkState=r;
+    if(r.posted){
+      el.innerHTML=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist hari ini sudah tersimpan dan terkunci.</p><div class="successMeta"><span>✓ 24 / 24 item</span><span>${esc(fmtDate())}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button><button class="btn btnGreen" style="margin-left:7px" onclick="backHome()">DASHBOARD</button></div></div>`;
+      return;
+    }
+    const map={};(r.answers||[]).forEach(a=>map[a.no]=a);
+    el.innerHTML=`<div class="checkHeader"><div class="checkTop"><button class="backBtn" onclick="backHome()">‹</button><div><div class="checkTitle">DCL Checklist</div><div class="checkSub">${esc(state.user.storeName||'ALL AREA')} • ${fmtDate()}</div></div></div><div class="checkStats"><span id="checkCount">0 / 24 item</span><span id="checkPct">0%</span></div><div class="progress"><i id="checkBar" style="width:0%"></i></div></div><div class="questions">${state.questions.map(q=>questionHtml(q,map[q.no]||{},false,'question')).join('')}</div><div class="saveBar"><div class="saveInfo" id="saveInfo">Posting hanya bisa jika 24/24 terisi.</div><div class="saveBtns"><button class="btn btnOutline" onclick="saveDraft()">SIMPAN SEMENTARA</button><button id="postBtn" class="btn btnGreen" onclick="postChecklist()">POSTING</button></div></div>`;
+    updateProgress();
+  }catch(e){el.innerHTML='<div class="card">Gagal memuat checklist.</div>'}
+}
+async function unpost(){
+  if(!confirm('Edit checklist hari ini? Setelah dibuka, checklist bisa diperbaiki lalu di-submit ulang.'))return;
+  try{const r=await api('unpostChecklist',{date:today(),user:state.user});if(r.ok){toast('Checklist dibuka untuk edit');checkPage()}else toast(r.message||'Gagal edit')}catch(e){toast('Gagal terhubung ke Apps Script')}
+}
+async function loadQuizPage(){
+  const el=document.getElementById('quiz');el.innerHTML='<div class="card">Memuat Monthly Quiz...</div>';
+  try{
+    const r=await api('quiz',{date:today(),store:state.user.store}),eros=r.eros||[],done=eros.filter(x=>r.completed?.['ERO|'+x.NAME]),pending=eros.filter(x=>!r.completed?.['ERO|'+x.NAME]),pct=eros.length?Math.round(done.length/eros.length*100):0;
+    el.innerHTML=`<div class="card"><div class="monthNav"><button onclick="loadQuizPage()">‹</button><span>MONTHLY QUIZ • ${esc(r.month)}</span><button onclick="loadQuizPage()">›</button></div><div class="quizChartWrap"><div class="donut" style="--pct:${pct}%"><b>${pct}%</b></div><div class="quizSummary"><div class="quizSummaryRow"><span>🟢 Sudah</span><b>${done.length} ERO</b></div><div class="quizSummaryRow"><span>🔴 Belum</span><b>${pending.length} ERO</b></div><div class="subline">Setiap ERO hanya perlu diselesaikan 1× per bulan.</div></div></div><div style="margin-top:18px"><div class="panelTitle">Status ERO</div>${eros.map(x=>{const key='ERO|'+x.NAME,yes=!!r.completed?.[key],dt=r.dates?.[key]||'';return `<div class="quizPerson"><div><b>${esc(x.NAME)}</b><small>${yes?'Sudah isi • '+esc(dt):'Belum isi'}</small></div><button class="badgeBtn ${yes?'done':'pending'}" ${yes?'disabled':''} onclick="markQuiz('ERO','${esc(x.NAME)}')">${yes?'✓ Sudah':'Tandai Sudah'}</button></div>`}).join('')||'<div class="subline">Belum ada ERO di ERO_MASTER.</div>'}</div><div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)"><div class="panelTitle">Status SL</div><div class="quizPerson"><div><b>SL</b><small>${r.slDone?'Sudah isi • '+esc(r.slDate||''):'Belum isi'}</small></div><button class="badgeBtn ${r.slDone?'done':'pending'}" ${r.slDone?'disabled':''} onclick="markQuiz('SL','SL')">${r.slDone?'✓ Sudah':'Tandai Sudah'}</button></div></div></div>`;
+  }catch(e){el.innerHTML='<div class="card">Gagal memuat Monthly Quiz.</div>'}
+}
+async function markQuiz(type,name){
+  if(!confirm('Tandai '+name+' sudah menyelesaikan Monthly Quiz bulan ini?'))return;
+  try{const r=await api('saveQuiz',{date:today(),user:state.user,items:[{type:type,name:name,status:'Ya'}]});if(r.ok){toast('Status Monthly Quiz tersimpan');loadQuizPage();loadHome()}else toast(r.message||'Gagal menyimpan')}catch(e){toast('Gagal terhubung ke server')}
 }
 const saved=localStorage.getItem('leaderChecklistUser');
 if(saved){try{state.user=JSON.parse(saved);openApp()}catch(e){localStorage.removeItem('leaderChecklistUser')}}
