@@ -215,24 +215,98 @@ function fmtDate(d=new Date()){return d.toLocaleDateString('id-ID',{weekday:'lon
 function toast(msg){const x=document.getElementById('toast');x.textContent=msg;x.classList.remove('hidden');clearTimeout(window._toast);window._toast=setTimeout(()=>x.classList.add('hidden'),2600)}
 function api(action,payload={}){
   return new Promise((resolve,reject)=>{
-    const cb='lc_'+Date.now()+'_'+Math.floor(Math.random()*99999);
-    const s=document.createElement('script');
-    window[cb]=data=>{cleanup();resolve(data)};
-    s.onerror=()=>{cleanup();reject(new Error('API'))};
-    function cleanup(){try{delete window[cb]}catch(e){}s.remove()}
-    s.src=API_URL+'?'+new URLSearchParams({action,callback:cb,payload:JSON.stringify(payload)});
-    document.body.appendChild(s);
+    const cb='LC_CB_'+Date.now()+'_'+Math.floor(Math.random()*1000000);
+    const script=document.createElement('script');
+    let finished=false;
+    const timeout=setTimeout(()=>{
+      if(finished)return;
+      finished=true;
+      cleanup();
+      reject(new Error('TIMEOUT'));
+    },12000);
+
+    function cleanup(){
+      clearTimeout(timeout);
+      try{delete window[cb]}catch(e){}
+      if(script.parentNode)script.parentNode.removeChild(script);
+    }
+
+    window[cb]=data=>{
+      if(finished)return;
+      finished=true;
+      cleanup();
+      resolve(data);
+    };
+
+    script.async=true;
+    script.referrerPolicy='no-referrer';
+    script.onerror=()=>{
+      if(finished)return;
+      finished=true;
+      cleanup();
+      reject(new Error('NETWORK'));
+    };
+
+    const query =
+      'action='+encodeURIComponent(action)+
+      '&callback='+encodeURIComponent(cb)+
+      '&payload='+encodeURIComponent(JSON.stringify(payload))+
+      '&_='+Date.now();
+
+    script.src=API_URL+'?'+query;
+    document.head.appendChild(script);
   });
 }
-function doLogin(){
-  const username=document.getElementById('username').value.trim(),password=document.getElementById('password').value;
-  const err=document.getElementById('loginErr');err.textContent='Memproses...';
-  api('login',{username,password}).then(r=>{
-    if(!r.ok){err.textContent=r.message||'Login gagal';return}
-    state.user=r.user;localStorage.setItem('leaderChecklistUser',JSON.stringify(r.user));
+
+async function doLogin(){
+  const username=document.getElementById('username').value.trim();
+  const password=document.getElementById('password').value;
+  const err=document.getElementById('loginErr');
+  const btn=document.querySelector('#loginCard button.primary') || document.querySelector('.login-card button.primary');
+
+  if(!username || !password){
+    err.textContent='Username dan password wajib diisi.';
+    return;
+  }
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent='MENGHUBUNGKAN...';
+    btn.style.opacity='.7';
+  }
+  err.textContent='Memeriksa login...';
+
+  try{
+    const r=await api('login',{username:username,password:password});
+    if(!r || !r.ok){
+      err.textContent=(r && r.message) ? r.message : 'Username atau password salah.';
+      return;
+    }
+    state.user=r.user;
+    localStorage.setItem('leaderChecklistUser',JSON.stringify(r.user));
     openApp();
-  }).catch(()=>err.textContent='API belum terhubung.');
+  }catch(e){
+    if(e && e.message==='TIMEOUT'){
+      err.textContent='Koneksi ke server timeout. Pastikan Web App Apps Script sudah DEPLOY versi terbaru.';
+    }else{
+      err.textContent='API belum terhubung. Cek URL Web App Apps Script.';
+    }
+  }finally{
+    if(btn){
+      btn.disabled=false;
+      btn.textContent='MASUK';
+      btn.style.opacity='1';
+    }
+  }
 }
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const u=document.getElementById('username');
+  const p=document.getElementById('password');
+  [u,p].forEach(el=>el&&el.addEventListener('keydown',e=>{
+    if(e.key==='Enter')doLogin();
+  }));
+});
 function openApp(){
   document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');
   const name=state.user.name||'Leader', initials=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
