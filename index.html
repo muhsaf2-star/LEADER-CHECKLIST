@@ -25,7 +25,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .cards,.grid2{grid-template-columns:1fr}
 .question{padding:12px}.opts,.note,.extra{margin-left:0}.extra{grid-template-columns:1fr}
 .side{display:none!important}
-.mobile-drawer{display:block!important}
+.mobile-drawer{display:none!important}
+.mobile-drawer.open{display:block!important}
 }
 </style>
 </head>
@@ -62,7 +63,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
     </div>
     <div id="mobileDrawer" class="mobile-drawer" onclick="if(event.target===this)toggleMobileMenu()">
       <div class="mobile-drawer-card">
-        <div class="mobile-drawer-head"><b>LEADER CHECKLIST</b><button class="mobile-close" onclick="toggleMobileMenu()">✕</button></div>
+        <div class="mobile-drawer-head"><b>LEADER CHECKLIST</b><button class="mobile-close" onclick="closeMobileMenu()">✕</button></div>
         <div class="mobile-nav">
           <button onclick="mobileGo('dashboard',this)">🏠 Dashboard</button>
           <button onclick="mobileGo('checklist',this)">✓ Daily Checklist</button>
@@ -116,8 +117,9 @@ function login(){
   }).catch(e=>document.getElementById('loginErr').textContent='API belum terhubung / URL belum diisi');
 }
 function logout(){localStorage.removeItem('lc_user');location.reload()}
-function toggleMobileMenu(){const d=document.getElementById('mobileDrawer');d.style.display=d.style.display==='block'?'none':'block'}
-function mobileGo(id,btn){toggleMobileMenu();showPage(id);}
+function toggleMobileMenu(){const d=document.getElementById('mobileDrawer');d.classList.toggle('open')}
+function closeMobileMenu(){document.getElementById('mobileDrawer').classList.remove('open')}
+function mobileGo(id,btn){closeMobileMenu();showPage(id);}
 function showPage(id,btn){
  document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');
  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
@@ -158,8 +160,42 @@ function loadDashboardQuiz(){
  }).catch(()=>{});
 }
 function bars(items,type){if(!items.length)return '<div class="muted">Belum ada data.</div>';return items.map(x=>`<div class="barrow"><div class="barlabel"><span>${esc(x.question)}</span><b>${x.count||1}</b></div><div class="bar ${type}bar"><i style="width:${Math.min(100,(x.count||1)*25)}%"></i></div></div>`).join('')}
+const LOCAL_QUESTIONS = [
+ [1,'Grooming Staff sesuai?'],
+ [2,'Apakah ada team standby saat masuk?'],
+ [3,'Apakah Area Floor Bersih?'],
+ [4,'Apakah Area LDU Bersih dari kotoran?'],
+ [5,'Apakah LDU ada yg mati?'],
+ [6,'Apakah TV promotion Hidup dan memutar materi promo?'],
+ [7,'Apakah Retail Mode menyala dan Price App update?'],
+ [8,'Apakah penataan acc sudah sesuai?'],
+ [9,'Apakah Mesin Edc berfungsi siap digunakan?'],
+ [10,'Apakah Price list dan Promo sudah update di PL?'],
+ [11,'Apakah ada lampu yang mati?'],
+ [12,'Apakah Area gudang staff bersih?'],
+ [13,'Apakah Gudang device rapih?'],
+ [14,'Apakah sudah setoran?'],
+ [15,'Apakah sudah SO Harian?'],
+ [16,'Apakah Ada barang Gantung antar store/dari gudang/retur ke gudang?'],
+ [17,'Apakah ada barang CPFR Belum di GR?'],
+ [18,'Apakah trade in sudah Ready for Pickup?'],
+ [19,'CEK DO, apakah sudah di arsip?'],
+ [20,'Cek internet, Apakah Berfungsi?'],
+ [21,'Apakah sudah melakukan Briefing?'],
+ [22,'Apakah cctv menyala?'],
+ [23,'Apakah ada Barang DOA / Returan ke gudang?'],
+ [24,'Apakah Monthly Quiz sudah selesai?']
+];
 function loadChecklist(){
- api('questions').then(r=>{state.questions=r.questions||[];renderChecklist()})
+ const box=document.getElementById('checklist');
+ box.innerHTML='<div class="panel"><div class="muted">Memuat 24 checklist...</div></div>';
+ api('questions').then(r=>{
+   state.questions=(r.questions&&r.questions.length)?r.questions:LOCAL_QUESTIONS.map(x=>({no:x[0],question:x[1]}));
+   renderChecklist();
+ }).catch(()=>{
+   state.questions=LOCAL_QUESTIONS.map(x=>({no:x[0],question:x[1]}));
+   renderChecklist();
+ });
 }
 function renderChecklist(){
  document.getElementById('checklist').innerHTML=`<div class="panel"><div class="muted">Tanggal otomatis: ${today()} • Store terkunci: <b>${esc(state.user.storeName||'ALL AREA')}</b></div></div>
