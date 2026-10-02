@@ -122,6 +122,29 @@ button{cursor:pointer}
 
 .moreGrid{display:grid;gap:9px}.moreBtn{border:1px solid var(--line);background:#fff;border-radius:15px;padding:14px;text-align:left;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between}.moreBtn strong{font-size:11px}.moreBtn span{font-size:9px;color:var(--muted);display:block;margin-top:3px}
 .mobileNav{display:none}
+.historyChart{margin-top:11px}
+.historyChartHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.historyChartTitle{font-size:12px;font-weight:900}
+.historyChartSub{font-size:9px;color:var(--muted);margin-top:3px}
+.historyBars{display:grid;gap:9px;margin-top:13px}
+.hbarRow{display:grid;grid-template-columns:58px 1fr 32px;gap:7px;align-items:center}
+.hbarDate{font-size:9px;font-weight:800;color:#58635c}
+.hbarTrack{height:18px;background:#edf2ee;border-radius:7px;overflow:hidden;display:flex;cursor:pointer}
+.hbarOk{height:100%;background:var(--green)}
+.hbarFind{height:100%;background:var(--red)}
+.hbarValue{font-size:9px;font-weight:900;text-align:right}
+.historyLegend{display:flex;gap:12px;margin-top:11px;font-size:9px;color:var(--muted)}
+.legendDot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px}
+.reviewCard{margin-top:11px}
+.reviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+.reviewMetric{background:#f7faf8;border:1px solid var(--line);border-radius:12px;padding:10px}
+.reviewMetric b{font-size:18px;display:block}.reviewMetric span{font-size:9px;color:var(--muted)}
+.lockedNotice{margin-top:10px;background:#eef9f2;border:1px solid #bfe4ca;color:#176c36;border-radius:11px;padding:10px;font-size:10px;font-weight:800}
+.lockedQuestion{opacity:.78}
+.lockedQuestion .opt{pointer-events:none}
+.lockedQuestion textarea,.lockedQuestion input{background:#f4f6f4;color:#69736d}
+@media(max-width:800px){.hbarRow{grid-template-columns:48px 1fr 28px}.reviewGrid{grid-template-columns:1fr 1fr}}
+
 .toast{position:fixed;left:50%;bottom:82px;transform:translateX(-50%);background:#17201a;color:#fff;padding:10px 13px;border-radius:11px;font-size:10px;z-index:1000;box-shadow:0 8px 30px #0003}
 
 @media(max-width:800px){
@@ -372,29 +395,36 @@ async function loadChecklist(){
     const r=await api('checklistState',{date:today(),user:state.user});state.checkState=r;
     const map={};(r.answers||[]).forEach(a=>map[a.no]=a);
     const posted=!!r.posted;
+    const notice=posted
+      ? `<div class="lockedNotice">✓ <b>Checklist hari ini sudah selesai.</b><br>Checklist terkunci dan tidak bisa diisi ulang. Jika ada yang perlu diperbaiki, gunakan <b>UNPOSTING / EDIT</b>.</div>`
+      : '';
+    const questionClass=posted?'question lockedQuestion':'question';
     el.innerHTML=`<div class="checkHeader">
       <div class="checkTop"><button class="backBtn" onclick="backHome()">‹</button><div><div class="checkTitle">DCL Checklist</div><div class="checkSub">${esc(state.user.storeName||'ALL AREA')} • ${fmtDate()}</div></div></div>
       <div class="checkStats"><span id="checkCount">0 / 24 item</span><span id="checkPct">0%</span></div><div class="progress"><i id="checkBar" style="width:0%"></i></div>
-      ${posted?'<div style="margin-top:10px;background:#eef9f2;border:1px solid #bfe4ca;color:#176c36;border-radius:11px;padding:9px;font-size:10px;font-weight:800">✓ Checklist hari ini sudah selesai dan terkunci. Kamu sedang dalam mode edit setelah Unposting.</div>':''}
+      ${notice}
     </div>
-    <div class="questions">${state.questions.map(q=>questionHtml(q,map[q.no]||{})).join('')}</div>
-    <div class="saveBar"><div class="saveInfo" id="saveInfo">Posting hanya bisa jika 24/24 terisi.</div><div class="saveBtns"><button class="btn btnOutline" onclick="saveDraft()">SIMPAN SEMENTARA</button><button id="postBtn" class="btn btnGreen" onclick="postChecklist()">POSTING</button></div></div>`;
+    <div class="questions">${state.questions.map(q=>questionHtml(q,map[q.no]||{},posted,questionClass)).join('')}</div>
+    ${posted
+      ? `<div class="saveBar"><div class="saveInfo">✓ Selesai hari ini • ${esc(r.updatedTime||'')} </div><div class="saveBtns"><button class="btn btnOutline" onclick="unpost()">✎ UNPOSTING / EDIT</button></div></div>`
+      : `<div class="saveBar"><div class="saveInfo" id="saveInfo">Posting hanya bisa jika 24/24 terisi.</div><div class="saveBtns"><button class="btn btnOutline" onclick="saveDraft()">SIMPAN SEMENTARA</button><button id="postBtn" class="btn btnGreen" onclick="postChecklist()">POSTING</button></div></div>`}`;
     updateProgress();
   }catch(e){el.innerHTML='<div class="card">Gagal memuat checklist.</div>'}
 }
-function questionHtml(q,a){
+function questionHtml(q,a,posted=false,questionClass='question'){
   const second=q.no===24?'Belum':'Tidak';
   const isFinding=a.answer==='Ya' && [5,11,16,17,23].includes(q.no) || a.answer==='Tidak' && ![5,11,16,17,23].includes(q.no);
+  const dis=posted?'disabled':'';
   let extra='';
-  if(q.no===14)extra=`<div class="extra"><input data-extra="value" placeholder="Value setoran" value="${esc(a.value||'')}"><input data-extra="depositor" placeholder="Nama penyetor" value="${esc(a.depositor||'')}"></div>`;
-  if(q.no===15)extra=`<div class="extra"><input data-extra="so" placeholder="Nama yang SO" value="${esc(a.so||'')}"><input data-extra="companion" placeholder="Pendamping SO" value="${esc(a.companion||'')}"></div>`;
-  return `<div class="question" data-no="${q.no}">
+  if(q.no===14)extra=`<div class="extra"><input data-extra="value" placeholder="Value setoran" value="${esc(a.value||'')}" ${dis}><input data-extra="depositor" placeholder="Nama penyetor" value="${esc(a.depositor||'')}" ${dis}></div>`;
+  if(q.no===15)extra=`<div class="extra"><input data-extra="so" placeholder="Nama yang SO" value="${esc(a.so||'')}" ${dis}><input data-extra="companion" placeholder="Pendamping SO" value="${esc(a.companion||'')}" ${dis}></div>`;
+  return `<div class="${questionClass}" data-no="${q.no}">
     <div class="qtop"><span class="qno">${String(q.no).padStart(2,'0')}</span><span class="qtext">${esc(q.question)}</span></div>
     <div class="opts">
-      <label class="opt ${isFinding&&a.answer==='Ya'?'find':''}"><input type="radio" name="q${q.no}" value="Ya" ${a.answer==='Ya'?'checked':''}>Ya</label>
-      <label class="opt ${isFinding&&a.answer===second?'find':''}"><input type="radio" name="q${q.no}" value="${second}" ${a.answer===second?'checked':''}>${second}</label>
+      <label class="opt ${isFinding&&a.answer==='Ya'?'find':''}"><input type="radio" name="q${q.no}" value="Ya" ${a.answer==='Ya'?'checked':''} ${dis}>Ya</label>
+      <label class="opt ${isFinding&&a.answer===second?'find':''}"><input type="radio" name="q${q.no}" value="${second}" ${a.answer===second?'checked':''} ${dis}>${second}</label>
     </div>
-    <div class="note"><textarea data-note placeholder="Catatan (isi bila ada temuan / keterangan)">${esc(a.note||'')}</textarea></div>${extra}
+    <div class="note"><textarea data-note placeholder="Catatan (isi bila ada temuan / keterangan)" ${dis}>${esc(a.note||'')}</textarea></div>${extra}
   </div>`;
 }
 function collect(){
@@ -422,10 +452,15 @@ async function saveDraft(){
   try{const r=await api('saveDraft',{date:today(),user:state.user,answers:c.answers});if(r.ok){toast(`Draft tersimpan • ${c.answers.length}/24 item`);loadHome()}else toast(r.message||'Gagal menyimpan')}catch(e){toast('Gagal terhubung ke Apps Script')}
 }
 async function postChecklist(){
+  if(state.checkState?.posted){toast('Checklist hari ini sudah selesai. Gunakan UNPOSTING / EDIT untuk perubahan.');return}
   const c=collect();
   if(c.missing.length){toast('Lengkapi semua 24 item terlebih dahulu');document.querySelector(`[data-no="${c.missing[0]}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});return}
   if(!confirm('Posting checklist hari ini? Setelah posting, checklist akan terkunci.'))return;
-  try{const r=await api('postChecklist',{date:today(),user:state.user,answers:c.answers});if(r.ok){toast(r.updated?'Checklist berhasil diperbarui':'Checklist berhasil diposting');go('home')}else toast(r.message||'Gagal posting')}catch(e){toast('Gagal terhubung ke Apps Script')}
+  try{
+    const r=await api('postChecklist',{date:today(),user:state.user,answers:c.answers});
+    if(r.ok){state.checkState={posted:true,locked:true,answers:c.answers};toast('✓ Checklist hari ini selesai dan terkunci');go('home')}
+    else toast(r.message||'Gagal posting')
+  }catch(e){toast('Gagal terhubung ke Apps Script')}
 }
 async function unpost(){
   if(!confirm('Buka kembali checklist hari ini untuk edit? Data lama akan dibuka sebagai draft dan bisa diposting ulang.'))return;
@@ -434,10 +469,58 @@ async function unpost(){
 
 async function loadReport(){
   const el=document.getElementById('report');el.innerHTML='<div class="card">Memuat report...</div>';
-  try{const r=await api('history',{store:state.user.store,limit:100});
-    el.innerHTML=`<div class="card"><div class="panelTitle">Riwayat Checklist</div><div class="tableWrap"><table class="table"><tr><th>Tanggal</th><th>Jam</th><th>Status</th><th>Finding</th></tr>${(r.rows||[]).map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td class="statusGood">✓ Selesai</td><td class="${Number(x.findings)>0?'statusBad':'statusGood'}">${Number(x.findings)>0?x.findings+' Finding':'Tidak ada Finding'}</td></tr>`).join('')}</table></div></div>`;
+  try{
+    const r=await api('history',{store:state.user.store,limit:30});
+    const rows=r.rows||[];
+    const chartRows=rows.slice(0,14).reverse();
+    const maxFind=Math.max(1,...chartRows.map(x=>Number(x.findings)||0));
+    const bars=chartRows.map(x=>{
+      const f=Math.max(0,Math.min(24,Number(x.findings)||0));
+      const ok=Math.max(0,24-f);
+      return `<div class="hbarRow" onclick="previewHistoryDate('${esc(x.date)}')" title="Lihat review ${esc(x.date)}">
+        <div class="hbarDate">${esc(x.date.slice(5))}</div>
+        <div class="hbarTrack"><i class="hbarOk" style="width:${ok/24*100}%"></i><i class="hbarFind" style="width:${f/24*100}%"></i></div>
+        <div class="hbarValue">${f}</div>
+      </div>`;
+    }).join('');
+    el.innerHTML=`
+      <div class="card">
+        <div class="panelTitle">Review Checklist • ${state.user.storeName||'Store'}</div>
+        <div class="historyChart">
+          <div class="historyChartHead"><div><div class="historyChartTitle">Preview 14 hari terakhir</div><div class="historyChartSub">Klik tanggal/bar untuk melihat detail review hari tersebut.</div></div></div>
+          ${bars?`<div class="historyBars">${bars}</div>`:'<div class="subline" style="margin-top:12px">Belum ada histori checklist.</div>'}
+          ${bars?`<div class="historyLegend"><span><i class="legendDot" style="background:var(--green)"></i>OK</span><span><i class="legendDot" style="background:var(--red)"></i>Finding</span></div>`:''}
+        </div>
+      </div>
+      <div id="historyPreview"></div>
+      <div class="card" style="margin-top:11px">
+        <div class="panelTitle">Riwayat Checklist</div>
+        <div class="tableWrap"><table class="table"><tr><th>Tanggal</th><th>Jam</th><th>Status</th><th>Finding</th></tr>
+        ${rows.map(x=>`<tr onclick="previewHistoryDate('${esc(x.date)}')" style="cursor:pointer"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td class="statusGood">✓ Selesai</td><td class="${Number(x.findings)>0?'statusBad':'statusGood'}">${Number(x.findings)>0?x.findings+' Finding':'Tidak ada Finding'}</td></tr>`).join('')}
+        </table></div>
+      </div>`;
   }catch(e){el.innerHTML='<div class="card">Gagal memuat report.</div>'}
 }
+async function previewHistoryDate(date){
+  const box=document.getElementById('historyPreview');
+  if(!box)return;
+  box.innerHTML='<div class="card reviewCard">Memuat review '+esc(date)+'...</div>';
+  try{
+    const r=await api('dashboard',{date:date,store:state.user.store,user:state.user});
+    const findings=r.findings||[], latest=r.latest||[], ok=latest.filter(x=>x.ok).length, total=latest.length||24;
+    box.innerHTML=`<div class="card reviewCard">
+      <div class="panelTitle">Review • ${esc(date)}</div>
+      <div class="reviewGrid">
+        <div class="reviewMetric"><b class="statusGood">${ok}</b><span>OK / ${total} item</span></div>
+        <div class="reviewMetric"><b class="${findings.length?'statusBad':'statusGood'}">${findings.length}</b><span>Finding</span></div>
+      </div>
+      <div style="margin-top:11px"><div class="panelTitle" style="margin-bottom:7px">${findings.length?'Finding pada hari ini':'Tidak ada finding 🎉'}</div>
+      ${findings.length?`<div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div>`:`<div class="subline">Semua item pada tanggal ini tercatat OK.</div>`}</div>
+    </div>`;
+    box.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){box.innerHTML='<div class="card reviewCard">Gagal memuat detail tanggal tersebut.</div>'}
+}
+
 async function loadQuizPage(){
   const el=document.getElementById('quiz');el.innerHTML='<div class="card">Memuat Monthly Quiz...</div>';
   try{const r=await api('quiz',{date:today(),store:state.user.store}),eros=r.eros||[],done=eros.filter(x=>r.completed?.['ERO|'+x.NAME]),pending=eros.filter(x=>!r.completed?.['ERO|'+x.NAME]);
