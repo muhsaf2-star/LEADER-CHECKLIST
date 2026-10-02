@@ -65,7 +65,19 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 const API_URL = 'https://script.google.com/macros/s/AKfycbyIau4TJNG_KeY3L3kR7C8TT1hnnOIZz2ODhYy-0NMDlO_0EDa2AOir-yiK7hfTsslLcw/exec';
 const state={user:null,questions:[],today:null};
 
-function api(action,payload={}){return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,...payload})}).then(r=>r.json())}
+function api(action,payload={}){
+  return new Promise((resolve,reject)=>{
+    const cb='lc_cb_'+Date.now()+'_'+Math.floor(Math.random()*100000);
+    const script=document.createElement('script');
+    const params=new URLSearchParams({action:action,callback:cb,payload:JSON.stringify(payload)});
+    let done=false;
+    window[cb]=(data)=>{done=true;cleanup();resolve(data)};
+    script.onerror=()=>{if(done)return;done=true;cleanup();reject(new Error('Apps Script connection failed'))};
+    function cleanup(){try{delete window[cb]}catch(e){window[cb]=undefined}script.remove()}
+    script.src=API_URL+'?'+params.toString();
+    document.body.appendChild(script);
+  });
+}
 function today(){return new Date().toISOString().slice(0,10)}
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function login(){
