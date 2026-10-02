@@ -16,8 +16,17 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:17px}.panel h3{margin:0 0 14px}.barrow{margin:11px 0}.barlabel{font-size:12px;margin-bottom:5px;display:flex;justify-content:space-between;gap:10px}.bar{height:10px;border-radius:99px;background:#edf1f6;overflow:hidden}.bar>i{display:block;height:100%;border-radius:99px}.bar.greenbar>i{background:var(--green)}.bar.redbar>i{background:var(--red)}
 .table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.badge{padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.bg{background:#e9f8f1;color:#12824c}.br{background:#ffecee;color:#c72f3c}
 .question{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;margin:10px 0}.qhead{display:flex;gap:10px}.qno{font-weight:900;color:var(--blue);min-width:28px}.qtext{font-weight:700}.opts{display:flex;gap:8px;margin:12px 0 0 38px;flex-wrap:wrap}.opts label{border:1px solid var(--line);border-radius:9px;padding:8px 12px}.opts input{margin-right:5px}.note{margin:10px 0 0 38px}.note textarea{min-height:58px}.extra{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 0 38px}.savebar{position:sticky;bottom:10px;background:#fff;border:1px solid var(--line);padding:12px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 10px 30px #001b3a12}.savebar button{background:var(--blue);color:#fff;padding:12px 20px;border-radius:10px;font-weight:800}.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.filters input,.filters select{padding:9px;border:1px solid var(--line);border-radius:9px;background:#fff}
-@media(max-width:900px){.side{width:72px}.brand{font-size:0}.brand:after{content:"LC";font-size:20px}.nav button{font-size:0;text-align:center}.nav button:before{content:"•";font-size:20px}.main{margin-left:72px;width:calc(100% - 72px)}.cards{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.main{padding:12px}.top h1{font-size:20px}.cards,.grid2{grid-template-columns:1fr}.question{padding:12px}.opts,.note,.extra{margin-left:0}.extra{grid-template-columns:1fr}.side{display:none}.main{margin-left:0;width:100%}}
+.mobile-menu-btn{display:none;background:var(--navy);color:#fff;border-radius:10px;padding:9px 12px;font-weight:900;font-size:20px;line-height:1}.mobile-drawer{display:none;position:fixed;z-index:1000;inset:0;background:#0008}.mobile-drawer-card{position:absolute;left:0;top:0;bottom:0;width:min(300px,84vw);background:var(--navy);color:#fff;padding:18px 14px;box-shadow:10px 0 30px #0004}.mobile-drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.mobile-drawer-head b{font-size:18px}.mobile-close{background:#ffffff18;color:#fff;border-radius:8px;padding:7px 11px;font-size:18px}.mobile-nav button{display:block;width:100%;padding:13px 12px;margin:5px 0;text-align:left;background:transparent;color:#dce7f5;border-radius:10px}.mobile-nav button.active,.mobile-nav button:hover{background:#ffffff15;color:#fff}.top-left{display:flex;gap:10px;align-items:flex-start;min-width:0}@media(max-width:900px){.side{width:72px}.brand{font-size:0}.brand:after{content:"LC";font-size:20px}.nav button{font-size:0;text-align:center}.nav button:before{content:"•";font-size:20px}.main{margin-left:72px;width:calc(100% - 72px)}.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){
+.mobile-menu-btn{display:flex!important}
+.main{padding:12px;margin-left:0!important;width:100%!important}
+.top{padding:2px 0 10px;align-items:flex-start}
+.top h1{font-size:20px}
+.cards,.grid2{grid-template-columns:1fr}
+.question{padding:12px}.opts,.note,.extra{margin-left:0}.extra{grid-template-columns:1fr}
+.side{display:none!important}
+.mobile-drawer{display:block!important}
+}
 </style>
 </head>
 <body>
@@ -48,8 +57,22 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
   </aside>
   <main class="main">
     <div class="top">
-      <div><h1 id="pageTitle">Dashboard Hari Ini</h1><div class="muted" id="identity"></div></div>
+      <div class="top-left"><button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Buka menu">☰</button><div><h1 id="pageTitle">Dashboard Hari Ini</h1><div class="muted" id="identity"></div></div></div>
       <div class="pill" id="clock"></div>
+    </div>
+    <div id="mobileDrawer" class="mobile-drawer" onclick="if(event.target===this)toggleMobileMenu()">
+      <div class="mobile-drawer-card">
+        <div class="mobile-drawer-head"><b>LEADER CHECKLIST</b><button class="mobile-close" onclick="toggleMobileMenu()">✕</button></div>
+        <div class="mobile-nav">
+          <button onclick="mobileGo('dashboard',this)">🏠 Dashboard</button>
+          <button onclick="mobileGo('checklist',this)">✓ Daily Checklist</button>
+          <button onclick="mobileGo('history',this)">🕘 Riwayat</button>
+          <button onclick="mobileGo('findings',this)">🔴 Temuan</button>
+          <button onclick="mobileGo('monthly',this)">📊 Laporan Bulanan</button>
+          <button id="mobileAllAreaNav" onclick="mobileGo('allarea',this)">🌐 All Area</button>
+          <button onclick="logout()">↪ Logout</button>
+        </div>
+      </div>
     </div>
     <section id="dashboard" class="page"></section>
     <section id="checklist" class="page hidden"></section>
@@ -88,11 +111,13 @@ function login(){
     state.user=r.user; localStorage.setItem('lc_user',JSON.stringify(r.user));
     document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');
     document.getElementById('identity').textContent=`${state.user.name} • ${state.user.role} • ${state.user.storeName||'ALL AREA'}`;
-    if(state.user.role!=='TSH' && state.user.role!=='ADMIN') document.getElementById('allAreaNav').style.display='none';
+    if(state.user.role!=='TSH' && state.user.role!=='ADMIN'){document.getElementById('allAreaNav').style.display='none';document.getElementById('mobileAllAreaNav').style.display='none';}
     showPage('dashboard'); loadDashboard();
   }).catch(e=>document.getElementById('loginErr').textContent='API belum terhubung / URL belum diisi');
 }
 function logout(){localStorage.removeItem('lc_user');location.reload()}
+function toggleMobileMenu(){const d=document.getElementById('mobileDrawer');d.style.display=d.style.display==='block'?'none':'block'}
+function mobileGo(id,btn){toggleMobileMenu();showPage(id);}
 function showPage(id,btn){
  document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');
  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
@@ -187,7 +212,7 @@ function loadAllArea(){
 }
 setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleString('id-ID',{dateStyle:'full',timeStyle:'short'}),1000);
 document.getElementById('clock').textContent=new Date().toLocaleString('id-ID',{dateStyle:'full',timeStyle:'short'});
-const saved=localStorage.getItem('lc_user');if(saved){state.user=JSON.parse(saved);document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('identity').textContent=`${state.user.name} • ${state.user.role} • ${state.user.storeName||'ALL AREA'}`;if(!['TSH','ADMIN'].includes(state.user.role))document.getElementById('allAreaNav').style.display='none';loadDashboard()}
+const saved=localStorage.getItem('lc_user');if(saved){state.user=JSON.parse(saved);document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('identity').textContent=`${state.user.name} • ${state.user.role} • ${state.user.storeName||'ALL AREA'}`;if(!['TSH','ADMIN'].includes(state.user.role)){document.getElementById('allAreaNav').style.display='none';document.getElementById('mobileAllAreaNav').style.display='none';}loadDashboard()}
 </script>
 </body>
 </html>
