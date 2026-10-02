@@ -472,7 +472,7 @@ function loadMore(){
   document.getElementById('more').innerHTML=`<div class="sectionTitle">More</div><div class="moreGrid">
     <button class="moreBtn" onclick="go('quiz')"><div><strong>Monthly Quiz</strong><span>Status ERO & SL bulan berjalan</span></div><b>→</b></button>
     <button class="moreBtn" onclick="go('findings')"><div><strong>Finding</strong><span>Daftar temuan checklist</span></div><b>→</b></button>
-    ${isTSH?'<button class="moreBtn" onclick="go(\\'allarea\\')"><div><strong>All Area</strong><span>Monitoring seluruh store</span></div><b>→</b></button>':''}
+    ${isTSH?'<button class="moreBtn" onclick="go(\'allarea\')"><div><strong>All Area</strong><span>Monitoring seluruh store</span></div><b>→</b></button>':''}
     <button class="moreBtn" onclick="logout()"><div><strong>Logout</strong><span>Keluar dari akun</span></div><b>↪</b></button>
   </div>`;
 }
