@@ -144,7 +144,7 @@ button{cursor:pointer}
     <p>Daily Store Operation • Samsung SMB</p>
     <div class="field"><label>USERNAME</label><input id="username" autocomplete="username"></div>
     <div class="field"><label>PASSWORD</label><input id="password" type="password" autocomplete="current-password"></div>
-    <button class="primary" onclick="doLogin()">MASUK</button>
+    <button id="loginBtn" class="primary" type="button">MASUK</button>
     <div id="loginErr" class="error"></div>
   </div>
 </div>
@@ -258,54 +258,35 @@ function api(action,payload={}){
   });
 }
 
-async function doLogin(){
+window.doLogin = async function(){
   const username=document.getElementById('username').value.trim();
   const password=document.getElementById('password').value;
   const err=document.getElementById('loginErr');
-  const btn=document.querySelector('#loginCard button.primary') || document.querySelector('.login-card button.primary');
-
-  if(!username || !password){
-    err.textContent='Username dan password wajib diisi.';
-    return;
-  }
-
-  if(btn){
-    btn.disabled=true;
-    btn.textContent='MENGHUBUNGKAN...';
-    btn.style.opacity='.7';
-  }
-  err.textContent='Memeriksa login...';
-
+  const btn=document.getElementById('loginBtn');
+  if(!username || !password){ err.textContent='Username dan password wajib diisi.'; return; }
+  btn.disabled=true; btn.textContent='MENGHUBUNGKAN...'; btn.style.opacity='.7';
+  err.textContent='Menghubungkan ke server...';
   try{
     const r=await api('login',{username:username,password:password});
-    if(!r || !r.ok){
-      err.textContent=(r && r.message) ? r.message : 'Username atau password salah.';
-      return;
-    }
-    state.user=r.user;
-    localStorage.setItem('leaderChecklistUser',JSON.stringify(r.user));
-    openApp();
+    if(!r || !r.ok){ err.textContent=(r&&r.message)||'Username atau password salah.'; return; }
+    state.user=r.user; localStorage.setItem('leaderChecklistUser',JSON.stringify(r.user)); openApp();
   }catch(e){
-    if(e && e.message==='TIMEOUT'){
-      err.textContent='Koneksi ke server timeout. Pastikan Web App Apps Script sudah DEPLOY versi terbaru.';
-    }else{
-      err.textContent='API belum terhubung. Cek URL Web App Apps Script.';
-    }
-  }finally{
-    if(btn){
-      btn.disabled=false;
-      btn.textContent='MASUK';
-      btn.style.opacity='1';
-    }
-  }
-}
+    console.error('LOGIN ERROR',e);
+    err.textContent=e&&e.message==='TIMEOUT' ? 'Server tidak merespons. Pastikan Apps Script sudah di-deploy sebagai Web App.' : 'Gagal terhubung ke API Apps Script.';
+  }finally{ btn.disabled=false; btn.textContent='MASUK'; btn.style.opacity='1'; }
+};
 
+window.addEventListener('error',e=>{
+  const box=document.getElementById('loginErr');
+  if(box) box.textContent='JavaScript error: '+(e.message||'unknown');
+  console.error(e.error||e.message);
+});
 document.addEventListener('DOMContentLoaded',()=>{
   const u=document.getElementById('username');
   const p=document.getElementById('password');
-  [u,p].forEach(el=>el&&el.addEventListener('keydown',e=>{
-    if(e.key==='Enter')doLogin();
-  }));
+  const b=document.getElementById('loginBtn');
+  if(b) b.addEventListener('click',()=>window.doLogin());
+  [u,p].forEach(el=>el&&el.addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); }));
 });
 function openApp(){
   document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');
