@@ -655,10 +655,39 @@ async function openMonitorDate(date){
   }catch(e){box.innerHTML='<div class="reviewBox subline">Gagal memuat tanggal.</div>'}
 }
 async function saveMonitorReason(date){
-  const reason=document.getElementById('reasonSelect')?.value,note=document.getElementById('reasonNote')?.value||'';
+  const reason=document.getElementById('reasonSelect')?.value||'',note=document.getElementById('reasonNote')?.value||'';
   if(!reason){toast('Pilih alasan terlebih dahulu');return}
-  try{const r=await api('saveReason',{date,user:state.user,reason,note});if(r.ok){toast('Reason tersimpan');loadHome()}else toast(r.message||'Gagal menyimpan reason')}catch(e){toast('Gagal terhubung ke server')}
+  if(!state.user||!state.user.username){toast('Login tidak terbaca. Silakan login kembali.');return}
+  const btn=document.querySelector('#monitorPreview .btnGreen'); if(btn){btn.disabled=true;btn.textContent='MENYIMPAN...'}
+  try{
+    const r=await api('saveReason',{date,user:state.user,reason,note});
+    if(r&&r.ok){
+      toast('Reason tersimpan ✓');
+      const m=await api('monitor',{month:date.slice(0,7),store:state.user.store,user:state.user});
+      renderMonitorRefresh(m,date);
+    }else{
+      toast((r&&r.message)||'Gagal menyimpan reason');
+      if(btn){btn.disabled=false;btn.textContent='SIMPAN REASON'}
+    }
+  }catch(e){
+    console.error(e);toast('Gagal menyimpan reason: '+(e.message||'server error'));
+    if(btn){btn.disabled=false;btn.textContent='SIMPAN REASON'}
+  }
 }
+function renderMonitorRefresh(data,selectedDate){
+  const host=document.getElementById('monitorPreview');
+  if(!host)return;
+  const item=(data.days||[]).find(x=>String(x.date)===String(selectedDate));
+  if(item&&item.status==='reason'){
+    host.innerHTML=`<div class="reviewBox card"><div class="panelTitle">${esc(selectedDate)} • 🟡 Reason tersimpan</div><div class="subline" style="margin-top:5px"><b>${esc(item.reason||'-')}</b>${item.note?` • ${esc(item.note)}`:''}</div><div class="subline" style="margin-top:6px">Reason sudah tercatat di history.</div><button class="btn btnOutline" style="margin-top:10px" onclick="openMonitorDate('${selectedDate}')">EDIT REASON</button></div>`;
+  }else{
+    host.innerHTML='<div class="reviewBox subline">Reason belum terbaca. Silakan refresh dan cek kembali.</div>';
+  }
+  const month=String(data.month||selectedDate.slice(0,7));
+  const old=document.querySelector('.monitorHead')?.closest('.card');
+  if(old){const fresh=document.createElement('div');fresh.innerHTML=renderMonitor(data,month);const newCard=fresh.firstElementChild;newCard.querySelector('#monitorPreview')?.replaceWith(host);old.replaceWith(newCard)}
+}
+
 async function loadChecklist(){
   const el=document.getElementById('check');el.innerHTML='<div class="card">Memuat checklist...</div>';
   try{
