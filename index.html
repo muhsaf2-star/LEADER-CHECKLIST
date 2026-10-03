@@ -322,6 +322,35 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(b) b.addEventListener('click',()=>window.doLogin());
   [u,p].forEach(el=>el&&el.addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); }));
 });
+
+function questionTotal(){
+  return state.questions.filter(q=>String(q.required||'YES').toUpperCase()!=='NO').length;
+}
+async function loadQuestions(){
+  try{
+    const r=await api('questions',{});
+    if(r&&r.ok&&Array.isArray(r.questions)&&r.questions.length){
+      state.questions=r.questions.map(q=>({
+        no:Number(q.no),
+        question:String(q.question||''),
+        type:String(q.type||'YA_TIDAK').toUpperCase(),
+        required:String(q.required||'YES').toUpperCase(),
+        active:String(q.active||'YES').toUpperCase(),
+        order:Number(q.order||q.no||0),
+        findingIf:String(q.findingIf||'TIDAK').toUpperCase()
+      })).filter(q=>q.no&&q.question&&q.active!=='NO')
+       .sort((a,b)=>a.order-b.order||a.no-b.no);
+      return true;
+    }
+  }catch(e){
+    console.warn('QUESTION_MASTER belum tersedia, memakai pertanyaan bawaan.',e);
+  }
+  state.questions=QUESTIONS.map(x=>({
+    no:x[0],question:x[1],type:'YA_TIDAK',required:'YES',active:'YES',order:x[0],findingIf:'TIDAK'
+  }));
+  return false;
+}
+
 async function openApp(){
   document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');
   const name=state.user.name||'Leader', initials=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
@@ -365,7 +394,7 @@ async function loadHome(){
       api('quiz',{date:today(),store:state.user.store})
     ]);
     state.checkState=cs;
-    const answers=cs.answers||[], total=24, filled=answers.length, pct=Math.round(filled/total*100);
+    const answers=cs.answers||[], total=questionTotal(), filled=answers.length, pct=total?Math.round(filled/total*100):0;
     const posted=!!cs.posted,draft=!!cs.draft;
     let hero='';
     if(posted){
@@ -426,7 +455,7 @@ async function loadChecklist(){
 }
 function questionHtml(q,a,posted=false,questionClass='question'){
   const second=q.type==='MONTHLY_QUIZ'?'Belum':'Tidak';
-  const isFinding=(String(q.findingIf||'TIDAK')==='YA'&&a.answer==='Ya')||(String(q.findingIf||'TIDAK')==='TIDAK'&&a.answer===second);
+  const isFinding=(String(q.findingIf||'TIDAK').toUpperCase()==='YA'&&a.answer==='Ya')||(String(q.findingIf||'TIDAK').toUpperCase()==='TIDAK'&&a.answer===second);
   const dis=posted?'disabled':'';
   let extra='';
   if(q.type==='SETORAN')extra=`<div class="extra"><input data-extra="value" placeholder="Value setoran" value="${esc(a.value||'')}" ${dis}><input data-extra="depositor" placeholder="Nama penyetor" value="${esc(a.depositor||'')}" ${dis}></div>`;
