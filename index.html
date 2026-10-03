@@ -244,6 +244,16 @@ const QUESTIONS=[
 let state={user:null,checkState:null,questions:QUESTIONS.map(x=>({no:x[0],question:x[1]}))};
 
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function displayDate(s){
+  const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return String(s||'');
+  const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${Number(m[3])} ${names[Number(m[2])-1]} ${m[1]}`;
+}
+function displayDateTime(date,time){
+  const d=displayDate(date), t=String(time||'').slice(0,5);
+  return t ? `${d}, ${t}` : d;
+}
 function today(){return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'})}
 function fmtDate(d=new Date()){return d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric',timeZone:'Asia/Jakarta'})}
 function toast(msg){const x=document.getElementById('toast');x.textContent=msg;x.classList.remove('hidden');clearTimeout(window._toast);window._toast=setTimeout(()=>x.classList.add('hidden'),2600)}
@@ -425,7 +435,7 @@ async function loadHome(){
         <div class="quizNames">${done.map(x=>`<span class="nameChip">✓ ${esc(x.NAME)}</span>`).join('')}${pending.map(x=>`<span class="nameChip pending">× ${esc(x.NAME)}</span>`).join('')}</div>
         <div class="slRow">SL: <b>${q.slDone?'✓ Sudah dilakukan':'Belum dilakukan'}</b></div>
       </div>`;
-    if(findCount)el.innerHTML+=`<div class="card" style="margin-top:11px"><div class="panelTitle">🔴 Finding Hari Ini</div><div class="findingList">${(dash.findings||[]).map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div></div>`;
+    if(findCount)el.innerHTML+=`<div class="card" style="margin-top:11px"><div class="panelTitle">🔴 Finding Hari Ini</div><div class="findingList">${(dash.findings||[]).map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(displayDateTime(x.date,x.time))}</small></div>`).join('')}</div></div>`;
   }catch(e){el.innerHTML='<div class="card">Gagal memuat dashboard. Coba refresh.</div>'}
 }
 async function loadChecklist(){
@@ -543,7 +553,7 @@ async function loadReport(){
       <div class="card" style="margin-top:11px">
         <div class="panelTitle">Riwayat Checklist</div>
         <div class="tableWrap"><table class="table"><tr><th>Tanggal</th><th>Jam</th><th>Status</th><th>Finding</th></tr>
-        ${rows.map(x=>`<tr onclick="previewHistoryDate('${esc(x.date)}')" style="cursor:pointer"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td class="statusGood">✓ Selesai</td><td class="${Number(x.findings)>0?'statusBad':'statusGood'}">${Number(x.findings)>0?x.findings+' Finding':'Tidak ada Finding'}</td></tr>`).join('')}
+        ${rows.map(x=>`<tr onclick="previewHistoryDate('${esc(x.date)}')" style="cursor:pointer"><td>${esc(displayDate(x.date))}</td><td>${esc(String(x.time||'').slice(0,5))}</td><td class="statusGood">✓ Selesai</td><td class="${Number(x.findings)>0?'statusBad':'statusGood'}">${Number(x.findings)>0?x.findings+' Finding':'Tidak ada Finding'}</td></tr>`).join('')}
         </table></div>
       </div>`;
   }catch(e){el.innerHTML='<div class="card">Gagal memuat report.</div>'}
@@ -562,7 +572,7 @@ async function previewHistoryDate(date){
         <div class="reviewMetric"><b class="${findings.length?'statusBad':'statusGood'}">${findings.length}</b><span>Finding</span></div>
       </div>
       <div style="margin-top:11px"><div class="panelTitle" style="margin-bottom:7px">${findings.length?'Finding pada hari ini':'Tidak ada finding 🎉'}</div>
-      ${findings.length?`<div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div>`:`<div class="subline">Semua item pada tanggal ini tercatat OK.</div>`}</div>
+      ${findings.length?`<div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(displayDateTime(x.date,x.time))}</small></div>`).join('')}</div>`:`<div class="subline">Semua item pada tanggal ini tercatat OK.</div>`}</div>
     </div>`;
     box.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){box.innerHTML='<div class="card reviewCard">Gagal memuat detail tanggal tersebut.</div>'}
@@ -591,13 +601,13 @@ function loadMore(){
 async function loadFindings(){
   const el=document.getElementById('findings');el.innerHTML='<div class="card">Memuat finding...</div>';
   try{const r=await api('findings',{store:state.user.store,limit:100});
-    el.innerHTML=`<div class="card"><div class="panelTitle">Finding</div><div class="findingList">${(r.rows||[]).map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.date)} • ${esc(x.time)} • ${esc(x.note||'Tidak ada catatan')}</small></div>`).join('')||'<div class="subline">Tidak ada finding.</div>'}</div></div>`;
+    el.innerHTML=`<div class="card"><div class="panelTitle">Finding</div><div class="findingList">${(r.rows||[]).map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(displayDateTime(x.date,x.time))} • ${esc(x.note||'Tidak ada catatan')}</small></div>`).join('')||'<div class="subline">Tidak ada finding.</div>'}</div></div>`;
   }catch(e){el.innerHTML='<div class="card">Gagal memuat finding.</div>'}
 }
 async function loadAllArea(){
   const el=document.getElementById('allarea');el.innerHTML='<div class="card">Memuat All Area...</div>';
   try{const r=await api('allArea',{month:today().slice(0,7)});
-    el.innerHTML=`<div class="card"><div class="panelTitle">All Area • ${today().slice(0,7)}</div><div class="tableWrap"><table class="table"><tr><th>Store</th><th>Checklist</th><th>Finding</th><th>Last Check</th></tr>${(r.stores||[]).map(x=>`<tr><td>${esc(x.store)}</td><td>${x.checks}</td><td class="${Number(x.findings)>0?'statusBad':'statusGood'}">${x.findings}</td><td>${esc(x.lastTime||'-')}</td></tr>`).join('')}</table></div></div>`;
+    el.innerHTML=`<div class="card"><div class="panelTitle">All Area • ${today().slice(0,7)}</div><div class="tableWrap"><table class="table"><tr><th>Store</th><th>Checklist</th><th>Finding</th><th>Last Check</th></tr>${(r.stores||[]).map(x=>`<tr><td>${esc(x.store)}</td><td>${x.checks}</td><td class="${Number(x.findings)>0?'statusBad':'statusGood'}">${x.findings}</td><td>${esc(String(x.lastTime||'-').slice(0,5))}</td></tr>`).join('')}</table></div></div>`;
   }catch(e){el.innerHTML='<div class="card">Gagal memuat All Area.</div>'}
 }
 
@@ -625,7 +635,7 @@ async function loadHome(){
     el.innerHTML=hero+`<div class="stats"><div class="stat ok"><div class="statIcon">✓</div><div class="statValue">${okCount}</div><div class="statLabel">OK hari ini</div></div><div class="stat finding"><div class="statIcon">⚠</div><div class="statValue">${findCount}</div><div class="statLabel">Finding hari ini</div></div></div>`+
       `<div class="card quizCard"><div class="quizHead"><div class="quizTitle">MONTHLY QUIZ • ${esc(q.month||month)}</div><button class="btn btnOutline" onclick="go('quiz')">Detail →</button></div><div class="quizChartWrap"><div class="donut" style="--pct:${qpct}%"><b>${qpct}%</b></div><div class="quizSummary"><div class="quizSummaryRow"><span>🟢 Sudah</span><b>${done.length} ERO</b></div><div class="quizSummaryRow"><span>🔴 Belum</span><b>${pending.length} ERO</b></div><div class="subline" style="margin-top:8px">Status tersimpan sampai ganti bulan.</div></div></div></div>`+
       renderMonitor(mon,month);
-    if(findCount)el.innerHTML+=`<div class="card" style="margin-top:11px"><div class="panelTitle">🔴 Finding Hari Ini</div><div class="findingList">${(dash.findings||[]).map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div></div>`;
+    if(findCount)el.innerHTML+=`<div class="card" style="margin-top:11px"><div class="panelTitle">🔴 Finding Hari Ini</div><div class="findingList">${(dash.findings||[]).map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(displayDateTime(x.date,x.time))}</small></div>`).join('')}</div></div>`;
   }catch(e){console.error(e);el.innerHTML='<div class="card">Gagal memuat dashboard. Coba refresh.</div>'}
 }
 function renderMonitor(data,month){
@@ -641,14 +651,14 @@ function renderMonitor(data,month){
 }
 async function changeMonitorMonth(month){window._monitorMonth=month;loadHome()}
 async function openMonitorDate(date){
-  const box=document.getElementById('monitorPreview');if(!box)return;box.innerHTML='<div class="reviewBox"><div class="subline">Memuat '+esc(date)+'...</div></div>';
+  const box=document.getElementById('monitorPreview');if(!box)return;box.innerHTML='<div class="reviewBox"><div class="subline">Memuat '+esc(displayDate(date))+'...</div></div>';
   try{
     const [r,m]=await Promise.all([api('dashboard',{date:date,store:state.user.store,user:state.user}),api('monitor',{month:date.slice(0,7),store:state.user.store,user:state.user})]);
     const item=(m.days||[]).find(x=>x.date===date),findings=r.findings||[],latest=r.latest||[],ok=latest.filter(x=>x.ok).length;
     if(item?.status==='submitted'){
-      box.innerHTML=`<div class="reviewBox card"><div class="panelTitle">Preview • ${esc(date)}</div><div class="subline">Leader: <b>${esc(item.leader||'-')}</b> • ${esc(item.time||'')}</div><div class="reviewGrid" style="margin-top:10px"><div class="reviewMetric"><b class="statusGood">${ok}</b><span>OK / ${latest.length||dash.total||questionTotal()}</span></div><div class="reviewMetric"><b class="${findings.length?'statusBad':'statusGood'}">${findings.length}</b><span>Finding</span></div></div>${findings.length?`<div style="margin-top:10px"><div class="panelTitle">Finding</div><div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div></div>`:'<div class="subline" style="margin-top:10px">Tidak ada finding 🎉</div>'}</div>`;
+      box.innerHTML=`<div class="reviewBox card"><div class="panelTitle">Preview • ${esc(displayDate(date))}</div><div class="subline">Leader: <b>${esc(item.leader||'-')}</b> • ${esc(displayDateTime(item.date||date,item.time))}</div><div class="reviewGrid" style="margin-top:10px"><div class="reviewMetric"><b class="statusGood">${ok}</b><span>OK / ${latest.length||dash.total||questionTotal()}</span></div><div class="reviewMetric"><b class="${findings.length?'statusBad':'statusGood'}">${findings.length}</b><span>Finding</span></div></div>${findings.length?`<div style="margin-top:10px"><div class="panelTitle">Finding</div><div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(displayDateTime(x.date,x.time))}</small></div>`).join('')}</div></div>`:'<div class="subline" style="margin-top:10px">Tidak ada finding 🎉</div>'}</div>`;
     }else{
-      box.innerHTML=`<div class="reasonBox"><div class="panelTitle">${esc(date)} • Checklist belum dilakukan</div><div class="subline" style="margin-top:4px">Kalau ada alasan seperti Offday atau tugas luar, simpan reason di sini.</div><select id="reasonSelect"><option value="">Pilih alasan...</option><option>Offday</option><option>Pekerjaan di luar kantor</option><option>Izin sakit</option><option>Cuti</option><option>Training</option><option>Lainnya</option></select><textarea id="reasonNote" placeholder="Catatan (opsional)">${esc(item?.note||'')}</textarea><div class="reasonActions"><button class="btn btnGreen" onclick="saveMonitorReason('${date}')">SIMPAN REASON</button></div></div>`;
+      box.innerHTML=`<div class="reasonBox"><div class="panelTitle">${esc(displayDate(date))} • Checklist belum dilakukan</div><div class="subline" style="margin-top:4px">Kalau ada alasan seperti Offday atau tugas luar, simpan reason di sini.</div><select id="reasonSelect"><option value="">Pilih alasan...</option><option>Offday</option><option>Pekerjaan di luar kantor</option><option>Izin sakit</option><option>Cuti</option><option>Training</option><option>Lainnya</option></select><textarea id="reasonNote" placeholder="Catatan (opsional)">${esc(item?.note||'')}</textarea><div class="reasonActions"><button class="btn btnGreen" onclick="saveMonitorReason('${date}')">SIMPAN REASON</button></div></div>`;
       if(item?.reason){document.getElementById('reasonSelect').value=item.reason;}
     }
     box.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -679,7 +689,7 @@ function renderMonitorRefresh(data,selectedDate){
   if(!host)return;
   const item=(data.days||[]).find(x=>String(x.date)===String(selectedDate));
   if(item&&item.status==='reason'){
-    host.innerHTML=`<div class="reviewBox card"><div class="panelTitle">${esc(selectedDate)} • 🟡 Reason tersimpan</div><div class="subline" style="margin-top:5px"><b>${esc(item.reason||'-')}</b>${item.note?` • ${esc(item.note)}`:''}</div><div class="subline" style="margin-top:6px">Reason sudah tercatat di history.</div><button class="btn btnOutline" style="margin-top:10px" onclick="openMonitorDate('${selectedDate}')">EDIT REASON</button></div>`;
+    host.innerHTML=`<div class="reviewBox card"><div class="panelTitle">${esc(displayDate(selectedDate))} • 🟡 Reason tersimpan</div><div class="subline" style="margin-top:5px"><b>${esc(item.reason||'-')}</b>${item.note?` • ${esc(item.note)}`:''}</div><div class="subline" style="margin-top:6px">Reason sudah tercatat di history.</div><button class="btn btnOutline" style="margin-top:10px" onclick="openMonitorDate('${selectedDate}')">EDIT REASON</button></div>`;
   }else{
     host.innerHTML='<div class="reviewBox subline">Reason belum terbaca. Silakan refresh dan cek kembali.</div>';
   }
