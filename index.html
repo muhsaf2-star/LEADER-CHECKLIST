@@ -470,7 +470,12 @@ async function postChecklist(){
   if(!confirm('Posting checklist hari ini? Setelah posting, checklist akan terkunci.'))return;
   try{
     const r=await api('postChecklist',{date:today(),user:state.user,answers:c.answers});
-    if(r.ok){state.checkState={posted:true,locked:true,answers:c.answers};toast('✓ Checklist hari ini selesai dan terkunci');loadChecklist()}
+    if(r.ok){
+    state.checkState={posted:true,locked:true,answers:c.answers,updatedTime:r.time};
+    toast('✓ Checklist hari ini selesai dan terkunci');
+    loadChecklist();
+    setTimeout(()=>{try{loadHome()}catch(e){}},250);
+  }
     else toast(r.message||'Gagal posting')
   }catch(e){toast('Gagal terhubung ke Apps Script')}
 }
