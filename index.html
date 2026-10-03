@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(b) b.addEventListener('click',()=>window.doLogin());
   [u,p].forEach(el=>el&&el.addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); }));
 });
-function openApp(){
+async function openApp(){
   document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');
   const name=state.user.name||'Leader', initials=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('greeting').textContent=`Good Morning, ${name} 👋`;
@@ -331,6 +331,7 @@ function openApp(){
   document.getElementById('mDate').textContent=fmtDate();
   document.getElementById('avatar').textContent=initials;document.getElementById('mAvatar').textContent=initials;
   document.getElementById('storePill').textContent=state.user.storeName||'ALL AREA';
+  await loadQuestions();
   go('home');
 }
 function logout(){localStorage.removeItem('leaderChecklistUser');location.reload()}
@@ -377,7 +378,7 @@ async function loadHome(){
     }else if(draft){
       hero=`<div class="hero">
         <div class="heroTop"><div class="heroIcon">↗</div><div><div class="eyebrow">DAILY CHECKLIST</div><h2>Ayo selesaikan<br>Checklist-mu hari ini</h2><p>Draft kamu sudah tersimpan. Lanjutkan dari item terakhir.</p></div></div>
-        <div class="progressMeta"><span>${filled} / 24 item</span><span>${pct}%</span></div><div class="progress"><i style="width:${pct}%"></i></div>
+        <div class="progressMeta"><span>${filled} / ${total} item</span><span>${pct}%</span></div><div class="progress"><i style="width:${pct}%"></i></div>
         <button class="heroAction" onclick="checkPage()">LANJUTKAN CHECKLIST →</button>
       </div>`;
     }else{
@@ -404,7 +405,7 @@ async function loadChecklist(){
   try{
     const r=await api('checklistState',{date:today(),user:state.user});state.checkState=r;
     if(r.posted){
-      el.innerHTML=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist harian kamu hari ini sudah tersimpan dan terkunci. Kamu tidak bisa mengisi atau submit ulang hari ini kecuali memilih <b>EDIT CEKLIST</b>.</p><div class="successMeta"><span>✓ 24 / 24 item</span><span>✓ ${esc(r.updatedTime||fmtDate())}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button><button class="btn btnGreen" style="margin-left:7px" onclick="backHome()">DASHBOARD</button></div></div>`;
+      el.innerHTML=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist harian kamu hari ini sudah tersimpan dan terkunci. Kamu tidak bisa mengisi atau submit ulang hari ini kecuali memilih <b>EDIT CEKLIST</b>.</p><div class="successMeta"><span>✓ ${total} / ${total} item</span><span>✓ ${esc(r.updatedTime||fmtDate())}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button><button class="btn btnGreen" style="margin-left:7px" onclick="backHome()">DASHBOARD</button></div></div>`;
       return;
     }
     const map={};(r.answers||[]).forEach(a=>map[a.no]=a);
@@ -413,23 +414,23 @@ async function loadChecklist(){
     const questionClass=posted?'question lockedQuestion':'question';
     el.innerHTML=`<div class="checkHeader">
       <div class="checkTop"><button class="backBtn" onclick="backHome()">‹</button><div><div class="checkTitle">DCL Checklist</div><div class="checkSub">${esc(state.user.storeName||'ALL AREA')} • ${fmtDate()}</div></div></div>
-      <div class="checkStats"><span id="checkCount">0 / 24 item</span><span id="checkPct">0%</span></div><div class="progress"><i id="checkBar" style="width:0%"></i></div>
+      <div class="checkStats"><span id="checkCount">0 / ${questionTotal()} item</span><span id="checkPct">0%</span></div><div class="progress"><i id="checkBar" style="width:0%"></i></div>
       ${notice}
     </div>
     <div class="questions">${state.questions.map(q=>questionHtml(q,map[q.no]||{},posted,questionClass)).join('')}</div>
     ${posted
       ? `<div class="saveBar"><div class="saveInfo">✓ Selesai hari ini • ${esc(r.updatedTime||'')} </div><div class="saveBtns"><button class="btn btnOutline" onclick="unpost()">✎ UNPOSTING / EDIT</button></div></div>`
-      : `<div class="saveBar"><div class="saveInfo" id="saveInfo">Posting hanya bisa jika 24/24 terisi.</div><div class="saveBtns"><button class="btn btnOutline" onclick="saveDraft()">SIMPAN SEMENTARA</button><button id="postBtn" class="btn btnGreen" onclick="postChecklist()">POSTING</button></div></div>`}`;
+      : `<div class="saveBar"><div class="saveInfo" id="saveInfo">Posting hanya bisa jika semua item terisi.</div><div class="saveBtns"><button class="btn btnOutline" onclick="saveDraft()">SIMPAN SEMENTARA</button><button id="postBtn" class="btn btnGreen" onclick="postChecklist()">POSTING</button></div></div>`}`;
     updateProgress();
   }catch(e){el.innerHTML='<div class="card">Gagal memuat checklist.</div>'}
 }
 function questionHtml(q,a,posted=false,questionClass='question'){
-  const second=q.no===24?'Belum':'Tidak';
-  const isFinding=a.answer==='Ya' && [5,11,16,17,23].includes(q.no) || a.answer==='Tidak' && ![5,11,16,17,23].includes(q.no);
+  const second=q.type==='MONTHLY_QUIZ'?'Belum':'Tidak';
+  const isFinding=(String(q.findingIf||'TIDAK')==='YA'&&a.answer==='Ya')||(String(q.findingIf||'TIDAK')==='TIDAK'&&a.answer===second);
   const dis=posted?'disabled':'';
   let extra='';
-  if(q.no===14)extra=`<div class="extra"><input data-extra="value" placeholder="Value setoran" value="${esc(a.value||'')}" ${dis}><input data-extra="depositor" placeholder="Nama penyetor" value="${esc(a.depositor||'')}" ${dis}></div>`;
-  if(q.no===15)extra=`<div class="extra"><input data-extra="so" placeholder="Nama yang SO" value="${esc(a.so||'')}" ${dis}><input data-extra="companion" placeholder="Pendamping SO" value="${esc(a.companion||'')}" ${dis}></div>`;
+  if(q.type==='SETORAN')extra=`<div class="extra"><input data-extra="value" placeholder="Value setoran" value="${esc(a.value||'')}" ${dis}><input data-extra="depositor" placeholder="Nama penyetor" value="${esc(a.depositor||'')}" ${dis}></div>`;
+  if(q.type==='SO')extra=`<div class="extra"><input data-extra="so" placeholder="Nama yang SO" value="${esc(a.so||'')}" ${dis}><input data-extra="companion" placeholder="Pendamping SO" value="${esc(a.companion||'')}" ${dis}></div>`;
   return `<div class="${questionClass}" data-no="${q.no}">
     <div class="qtop"><span class="qno">${String(q.no).padStart(2,'0')}</span><span class="qtext">${esc(q.question)}</span></div>
     <div class="opts">
@@ -443,7 +444,7 @@ function collect(){
   const answers=[],missing=[];
   for(const q of state.questions){
     const box=document.querySelector(`[data-no="${q.no}"]`),chosen=box?.querySelector(`input[name="q${q.no}"]:checked`);
-    if(!chosen){missing.push(q.no);continue}
+    if(!chosen){if(String(q.required||'YES')!=='NO')missing.push(q.no);continue}
     const a={no:q.no,answer:chosen.value,note:box.querySelector('[data-note]')?.value||''};
     box.querySelectorAll('[data-extra]').forEach(x=>a[x.dataset.extra]=x.value);
     answers.push(a);
@@ -451,22 +452,22 @@ function collect(){
   return {answers,missing};
 }
 function updateProgress(){
-  const c=collect(),n=c.answers.length,p=Math.round(n/24*100);
+  const c=collect(),n=c.answers.length,total=state.questions.filter(q=>String(q.required||'YES')!=='NO').length,p=total?Math.round(n/total*100):0;
   const a=document.getElementById('checkCount'),b=document.getElementById('checkPct'),bar=document.getElementById('checkBar'),btn=document.getElementById('postBtn'),info=document.getElementById('saveInfo');
-  if(a)a.textContent=`${n} / 24 item`;if(b)b.textContent=p+'%';if(bar)bar.style.width=p+'%';
-  if(btn){btn.disabled=n<24;btn.className='btn '+(n<24?'btnGray':'btnGreen');btn.textContent=n<24?'LENGKAPI 24 ITEM':'POSTING CHECKLIST'}
-  if(info)info.textContent=n<24?`${n}/24 terisi • Posting terkunci sampai lengkap.`:'24/24 lengkap • Siap diposting.';
+  if(a)a.textContent=`${n} / ${total} item`;if(b)b.textContent=p+'%';if(bar)bar.style.width=p+'%';
+  if(btn){btn.disabled=n<total;btn.className='btn '+(n<total?'btnGray':'btnGreen');btn.textContent=n<total?'LENGKAPI SEMUA ITEM':'POSTING CHECKLIST'}
+  if(info)info.textContent=n<total?`${n}/${total} terisi • Posting terkunci sampai lengkap.`:`${total}/${total} lengkap • Siap diposting.`;
 }
 document.addEventListener('change',e=>{if(e.target.closest('#check'))updateProgress()});
 
 async function saveDraft(){
   const c=collect();
-  try{const r=await api('saveDraft',{date:today(),user:state.user,answers:c.answers});if(r.ok){toast(`Draft tersimpan • ${c.answers.length}/24 item`);loadHome()}else toast(r.message||'Gagal menyimpan')}catch(e){toast('Gagal terhubung ke Apps Script')}
+  try{const r=await api('saveDraft',{date:today(),user:state.user,answers:c.answers});if(r.ok){toast(`Draft tersimpan • ${c.answers.length}/${questionTotal()} item`);loadHome()}else toast(r.message||'Gagal menyimpan')}catch(e){toast('Gagal terhubung ke Apps Script')}
 }
 async function postChecklist(){
   if(state.checkState?.posted){toast('Checklist hari ini sudah selesai. Gunakan UNPOSTING / EDIT untuk perubahan.');return}
   const c=collect();
-  if(c.missing.length){toast('Lengkapi semua 24 item terlebih dahulu');document.querySelector(`[data-no="${c.missing[0]}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});return}
+  if(c.missing.length){toast('Lengkapi semua item terlebih dahulu');document.querySelector(`[data-no="${c.missing[0]}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});return}
   if(!confirm('Posting checklist hari ini? Setelah posting, checklist akan terkunci.'))return;
   try{
     const r=await api('postChecklist',{date:today(),user:state.user,answers:c.answers});
@@ -582,12 +583,12 @@ async function loadHome(){
       api('monitor',{month:month,store:state.user.store,user:state.user})
     ]);
     state.checkState=cs;
-    const posted=!!cs.posted,draft=!!cs.draft,filled=(cs.answers||[]).length,pct=Math.round(filled/24*100);
+    const total=questionTotal(),posted=!!cs.posted,draft=!!cs.draft,filled=(cs.answers||[]).length,pct=total?Math.round(filled/total*100):0;
     let hero='';
     if(posted){
-      hero=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist harian kamu hari ini sudah tersimpan dan terkunci.</p><div class="successMeta"><span>✓ 24 / 24 item</span><span>✓ ${esc(dash.lastTime||'')}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button></div></div>`;
+      hero=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist harian kamu hari ini sudah tersimpan dan terkunci.</p><div class="successMeta"><span>✓ ${total} / ${total} item</span><span>✓ ${esc(dash.lastTime||'')}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button></div></div>`;
     }else if(draft){
-      hero=`<div class="hero"><div class="heroTop"><div class="heroIcon">↗</div><div><div class="eyebrow">DAILY CHECKLIST</div><h2>Ayo selesaikan<br>Checklist-mu hari ini</h2><p>Draft kamu sudah tersimpan. Lanjutkan dari item terakhir.</p></div></div><div class="progressMeta"><span>${filled} / 24 item</span><span>${pct}%</span></div><div class="progress"><i style="width:${pct}%"></i></div><button class="heroAction" onclick="checkPage()">LANJUTKAN CHECKLIST →</button></div>`;
+      hero=`<div class="hero"><div class="heroTop"><div class="heroIcon">↗</div><div><div class="eyebrow">DAILY CHECKLIST</div><h2>Ayo selesaikan<br>Checklist-mu hari ini</h2><p>Draft kamu sudah tersimpan. Lanjutkan dari item terakhir.</p></div></div><div class="progressMeta"><span>${filled} / ${total} item</span><span>${pct}%</span></div><div class="progress"><i style="width:${pct}%"></i></div><button class="heroAction" onclick="checkPage()">LANJUTKAN CHECKLIST →</button></div>`;
     }else{
       hero=`<div class="hero"><div class="heroTop"><div class="heroIcon">☑</div><div><div class="eyebrow">DAILY CHECKLIST</div><h2>Ayo checklist harianmu<br>belum dilakukan</h2><p>Mari pastikan semua area store dalam kondisi terbaik.</p></div></div><button class="heroAction" onclick="checkPage()">MULAI CHECKLIST →</button></div>`;
     }
@@ -616,7 +617,7 @@ async function openMonitorDate(date){
     const [r,m]=await Promise.all([api('dashboard',{date:date,store:state.user.store,user:state.user}),api('monitor',{month:date.slice(0,7),store:state.user.store,user:state.user})]);
     const item=(m.days||[]).find(x=>x.date===date),findings=r.findings||[],latest=r.latest||[],ok=latest.filter(x=>x.ok).length;
     if(item?.status==='submitted'){
-      box.innerHTML=`<div class="reviewBox card"><div class="panelTitle">Preview • ${esc(date)}</div><div class="subline">Leader: <b>${esc(item.leader||'-')}</b> • ${esc(item.time||'')}</div><div class="reviewGrid" style="margin-top:10px"><div class="reviewMetric"><b class="statusGood">${ok}</b><span>OK / ${latest.length||24}</span></div><div class="reviewMetric"><b class="${findings.length?'statusBad':'statusGood'}">${findings.length}</b><span>Finding</span></div></div>${findings.length?`<div style="margin-top:10px"><div class="panelTitle">Finding</div><div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div></div>`:'<div class="subline" style="margin-top:10px">Tidak ada finding 🎉</div>'}</div>`;
+      box.innerHTML=`<div class="reviewBox card"><div class="panelTitle">Preview • ${esc(date)}</div><div class="subline">Leader: <b>${esc(item.leader||'-')}</b> • ${esc(item.time||'')}</div><div class="reviewGrid" style="margin-top:10px"><div class="reviewMetric"><b class="statusGood">${ok}</b><span>OK / ${latest.length||dash.total||questionTotal()}</span></div><div class="reviewMetric"><b class="${findings.length?'statusBad':'statusGood'}">${findings.length}</b><span>Finding</span></div></div>${findings.length?`<div style="margin-top:10px"><div class="panelTitle">Finding</div><div class="findingList">${findings.map(x=>`<div class="listRow findingRow"><b>${esc(x.question)}</b><small>${esc(x.note||'Tidak ada catatan')} • ${esc(x.time||'')}</small></div>`).join('')}</div></div>`:'<div class="subline" style="margin-top:10px">Tidak ada finding 🎉</div>'}</div>`;
     }else{
       box.innerHTML=`<div class="reasonBox"><div class="panelTitle">${esc(date)} • Checklist belum dilakukan</div><div class="subline" style="margin-top:4px">Kalau ada alasan seperti Offday atau tugas luar, simpan reason di sini.</div><select id="reasonSelect"><option value="">Pilih alasan...</option><option>Offday</option><option>Pekerjaan di luar kantor</option><option>Izin sakit</option><option>Cuti</option><option>Training</option><option>Lainnya</option></select><textarea id="reasonNote" placeholder="Catatan (opsional)">${esc(item?.note||'')}</textarea><div class="reasonActions"><button class="btn btnGreen" onclick="saveMonitorReason('${date}')">SIMPAN REASON</button></div></div>`;
       if(item?.reason){document.getElementById('reasonSelect').value=item.reason;}
@@ -634,11 +635,11 @@ async function loadChecklist(){
   try{
     const r=await api('checklistState',{date:today(),user:state.user});state.checkState=r;
     if(r.posted){
-      el.innerHTML=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist hari ini sudah tersimpan dan terkunci.</p><div class="successMeta"><span>✓ 24 / 24 item</span><span>${esc(fmtDate())}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button><button class="btn btnGreen" style="margin-left:7px" onclick="backHome()">DASHBOARD</button></div></div>`;
+      el.innerHTML=`<div class="successScreen"><div class="successCard"><div class="successIcon">✓</div><h2>Yeey, selesai! 🎉</h2><p><b class="successName">Ceklistmu udah selesai di-submit, Pak ${esc(state.user.name||'Leader')}!</b><br>Checklist hari ini sudah tersimpan dan terkunci.</p><div class="successMeta"><span>✓ ${total} / ${total} item</span><span>${esc(fmtDate())}</span></div><button class="btn btnOutline" onclick="unpost()">✎ EDIT CEKLIST</button><button class="btn btnGreen" style="margin-left:7px" onclick="backHome()">DASHBOARD</button></div></div>`;
       return;
     }
     const map={};(r.answers||[]).forEach(a=>map[a.no]=a);
-    el.innerHTML=`<div class="checkHeader"><div class="checkTop"><button class="backBtn" onclick="backHome()">‹</button><div><div class="checkTitle">DCL Checklist</div><div class="checkSub">${esc(state.user.storeName||'ALL AREA')} • ${fmtDate()}</div></div></div><div class="checkStats"><span id="checkCount">0 / 24 item</span><span id="checkPct">0%</span></div><div class="progress"><i id="checkBar" style="width:0%"></i></div></div><div class="questions">${state.questions.map(q=>questionHtml(q,map[q.no]||{},false,'question')).join('')}</div><div class="saveBar"><div class="saveInfo" id="saveInfo">Posting hanya bisa jika 24/24 terisi.</div><div class="saveBtns"><button class="btn btnOutline" onclick="saveDraft()">SIMPAN SEMENTARA</button><button id="postBtn" class="btn btnGreen" onclick="postChecklist()">POSTING</button></div></div>`;
+    el.innerHTML=`<div class="checkHeader"><div class="checkTop"><button class="backBtn" onclick="backHome()">‹</button><div><div class="checkTitle">DCL Checklist</div><div class="checkSub">${esc(state.user.storeName||'ALL AREA')} • ${fmtDate()}</div></div></div><div class="checkStats"><span id="checkCount">0 / ${questionTotal()} item</span><span id="checkPct">0%</span></div><div class="progress"><i id="checkBar" style="width:0%"></i></div></div><div class="questions">${state.questions.map(q=>questionHtml(q,map[q.no]||{},false,'question')).join('')}</div><div class="saveBar"><div class="saveInfo" id="saveInfo">Posting hanya bisa jika semua item terisi.</div><div class="saveBtns"><button class="btn btnOutline" onclick="saveDraft()">SIMPAN SEMENTARA</button><button id="postBtn" class="btn btnGreen" onclick="postChecklist()">POSTING</button></div></div>`;
     updateProgress();
   }catch(e){el.innerHTML='<div class="card">Gagal memuat checklist.</div>'}
 }
